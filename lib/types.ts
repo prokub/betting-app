@@ -9,6 +9,11 @@ export type BetType =
   | 'legs_over_9_5'
   | '180s_over_6_5'
   | 'first_thrower'
+  | 'finalist_prediction'
+  | 'final_winner'
+
+export type BetDifficulty = 'easy' | 'medium' | 'hard' | 'very_hard'
+export type BetRound = 'quarterfinals' | 'tournament'
 
 export interface Match {
   id: string
@@ -50,10 +55,18 @@ export interface WeeklyScore {
 // Bet type metadata — used to render the UI
 export const BET_TYPE_CONFIG: Record<BetType, {
   label: string
+  points: number
+  difficulty: BetDifficulty
+  round: BetRound
+  description: string
   options: (home: string, away: string) => { value: string; label: string }[]
 }> = {
   match_winner: {
     label: 'Who wins the match?',
+    points: 1,
+    difficulty: 'easy',
+    round: 'quarterfinals',
+    description: 'Basic prediction with 50/50 chance',
     options: (home, away) => [
       { value: home, label: home },
       { value: away, label: away },
@@ -61,6 +74,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   most_180s: {
     label: 'Who throws more 180s?',
+    points: 2,
+    difficulty: 'medium',
+    round: 'quarterfinals',
+    description: 'Requires match knowledge, ~45% success rate',
     options: (home, away) => [
       { value: home, label: home },
       { value: away, label: away },
@@ -68,6 +85,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   highest_checkout: {
     label: 'Who hits the highest checkout?',
+    points: 2,
+    difficulty: 'medium',
+    round: 'quarterfinals',
+    description: 'Requires match knowledge, ~45% success rate',
     options: (home, away) => [
       { value: home, label: home },
       { value: away, label: away },
@@ -75,6 +96,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   checkout_over_105: {
     label: 'Will there be a 105.5+ checkout?',
+    points: 3,
+    difficulty: 'hard',
+    round: 'quarterfinals',
+    description: 'Rare event, only ~25% success rate',
     options: () => [
       { value: 'yes', label: 'Yes' },
       { value: 'no', label: 'No' },
@@ -82,6 +107,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   higher_avg: {
     label: 'Who has the higher 3-dart average?',
+    points: 2,
+    difficulty: 'medium',
+    round: 'quarterfinals',
+    description: 'Requires match knowledge, ~45% success rate',
     options: (home, away) => [
       { value: home, label: home },
       { value: away, label: away },
@@ -89,6 +118,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   legs_over_9_5: {
     label: 'Total legs — over or under 9.5?',
+    points: 2,
+    difficulty: 'medium',
+    round: 'quarterfinals',
+    description: 'Requires match knowledge, ~45% success rate',
     options: () => [
       { value: 'over', label: 'Over 9.5' },
       { value: 'under', label: 'Under 9.5' },
@@ -96,6 +129,10 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   '180s_over_6_5': {
     label: 'Total 180s — over or under 6.5?',
+    points: 2,
+    difficulty: 'medium',
+    round: 'quarterfinals',
+    description: 'Requires match knowledge, ~45% success rate',
     options: () => [
       { value: 'over', label: 'Over 6.5' },
       { value: 'under', label: 'Under 6.5' },
@@ -103,9 +140,29 @@ export const BET_TYPE_CONFIG: Record<BetType, {
   },
   first_thrower: {
     label: 'Who throws first in leg 1?',
+    points: 1,
+    difficulty: 'easy',
+    round: 'quarterfinals',
+    description: 'Random element, 50/50 chance',
     options: (home, away) => [
       { value: home, label: home },
       { value: away, label: away },
     ],
+  },
+  finalist_prediction: {
+    label: 'Who reaches the final?',
+    points: 5,
+    difficulty: 'very_hard',
+    round: 'tournament',
+    description: 'Predict 2 of 4 semifinalists to reach the final. 5 pts per correct prediction.',
+    options: () => [], // Handled specially in UI
+  },
+  final_winner: {
+    label: 'Who wins the final?',
+    points: 10,
+    difficulty: 'very_hard',
+    round: 'tournament',
+    description: 'Predict the tournament winner. Only available after semifinals.',
+    options: () => [], // Handled specially in UI
   },
 }

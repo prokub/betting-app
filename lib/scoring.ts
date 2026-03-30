@@ -73,6 +73,18 @@ export function scoreBet(
       return prediction === firstThrowerName ? 1 : 0
     }
 
+    case 'finalist_prediction': {
+      // This is handled at tournament level, not match level
+      // Return 0 as placeholder - actual scoring happens in evaluate route
+      return 0
+    }
+
+    case 'final_winner': {
+      // This is handled at tournament level, not match level
+      // Return 0 as placeholder - actual scoring happens in evaluate route
+      return 0
+    }
+
     default:
       return 0
   }

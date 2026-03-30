@@ -38,7 +38,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🎯</div>
           <h1 className="text-2xl font-bold text-white">Darts Bets</h1>
-          <p className="text-zinc-400 text-sm mt-2">Premier League Darts · Season 2025</p>
+          <p className="text-zinc-400 text-sm mt-2">Premier League Darts · Season 2026</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <input

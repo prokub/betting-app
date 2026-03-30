@@ -4,11 +4,12 @@ import { Match, Bet } from '@/lib/types'
 export async function getUpcomingMatchesWithBets(userId: string) {
   const supabase = await createClient()
 
-  // Get upcoming matches ordered by date
+  // Get upcoming quarterfinal matches only, ordered by date
   const { data: matches, error: matchError } = await supabase
     .from('matches')
     .select('*')
     .eq('status', 'upcoming')
+    .eq('round_name', 'Quarterfinals')
     .order('match_date', { ascending: true })
 
   if (matchError) throw matchError

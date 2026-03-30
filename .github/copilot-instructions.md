@@ -1,5 +1,12 @@
 # Copilot Instructions for Betting App
 
+## Getting Started
+
+**New to this project?** Start here:
+1. Read [DEV_SETUP.md](../DEV_SETUP.md) to set up local Supabase project and environment
+2. Run `npm run dev` to start development server
+3. Once testing is set up, read TESTING.md for test patterns
+
 ## Project Overview
 
 This is a Premier League Darts betting application built with Next.js 16, React 19, TypeScript, and Supabase. Users can place bets on various match outcomes and track scores across multiple weeks.
@@ -10,6 +17,7 @@ This is a Premier League Darts betting application built with Next.js 16, React 
 - **Build**: `npm run build`
 - **Start production server**: `npm start`
 - **Lint**: `eslint` (runs ESLint on all files)
+- **Test** (when set up): `npm test` / `npm test:watch` / `npm run e2e`
 
 The project uses **Bun** as the package manager (see `bun.lock`). If you need to check dependencies or install packages, use Bun commands.
 

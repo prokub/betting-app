@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { BetType } from '@/lib/types'
+import { validateBetPlacement } from '@/lib/betting-rules'
 
 const VALID_BET_TYPES: BetType[] = [
   'match_winner', 'most_180s', 'highest_checkout', 'checkout_over_105',
@@ -22,12 +23,18 @@ export async function POST(request: Request) {
   // Verify match is still upcoming and hasn't started
   const { data: match } = await supabaseAdmin
     .from('matches')
-    .select('status, match_date')
+    .select('status, match_date, round_name')
     .eq('id', match_id)
     .single()
 
-  if (!match || match.status !== 'upcoming' || new Date(match.match_date) <= new Date()) {
-    return NextResponse.json({ error: 'Match is not open for betting' }, { status: 400 })
+  if (!match) {
+    return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+  }
+
+  // Validate betting placement (deadline + round restrictions)
+  const validation = validateBetPlacement(match.match_date, match.round_name)
+  if (!validation.allowed) {
+    return NextResponse.json({ error: validation.reason }, { status: 400 })
   }
 
   // Upsert — allows changing prediction before match starts
