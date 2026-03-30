@@ -1,0 +1,15 @@
+name: Sync matches
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:       # Also allows manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sync endpoint
+        run: |
+          curl -X POST ${{ secrets.APP_URL }}/api/sync-matches \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
