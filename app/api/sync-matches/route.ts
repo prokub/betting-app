@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       .from('matches')
       .upsert(parsed, { onConflict: 'external_id' })
 
-    if (error) throw error
+    if (error) throw new Error(error.message ?? JSON.stringify(error))
 
     return NextResponse.json({
       synced: parsed.length,
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
       finished: finished.length,
     })
   } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err))
-    console.error('Sync error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const message = err instanceof Error ? err.message : JSON.stringify(err)
+    console.error('Sync error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

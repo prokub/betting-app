@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       .eq('status', 'finished')
       .not('winner', 'is', null)
 
-    if (matchError) throw matchError
+    if (matchError) throw new Error(matchError.message ?? JSON.stringify(matchError))
     if (!matches?.length) {
       return NextResponse.json({ message: 'No finished matches to evaluate' })
     }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       .in('match_id', matchIds)
       .is('points_earned', null)
 
-    if (betError) throw betError
+    if (betError) throw new Error(betError.message ?? JSON.stringify(betError))
     if (!bets?.length) {
       return NextResponse.json({ message: 'No unevaluated bets found' })
     }
@@ -125,9 +125,9 @@ export async function POST(request: Request) {
       matches: uniqueExternalIds.length,
     })
   } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err))
-    console.error('Evaluate error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const message = err instanceof Error ? err.message : JSON.stringify(err)
+    console.error('Evaluate error:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
