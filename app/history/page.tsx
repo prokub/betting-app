@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { BET_TYPE_CONFIG, BetType, Match, Bet } from '@/lib/types'
+import { BET_TYPE_CONFIG, BetType, Match } from '@/lib/types'
 
 export default async function HistoryPage() {
   const supabase = await createClient()

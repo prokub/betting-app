@@ -37,8 +37,9 @@ export async function POST(request: Request) {
       upcoming: upcoming.length,
       finished: finished.length,
     })
-  } catch (err: any) {
-    console.error('Sync error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err))
+    console.error('Sync error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

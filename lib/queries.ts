@@ -45,6 +45,7 @@ export async function getFinishedMatchesWithBets(userId: string) {
     .from('bets')
     .select('*')
     .in('match_id', matchIds)
+    .eq('user_id', userId)
 
   if (betError) throw betError
 

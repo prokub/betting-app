@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const matchMap = Object.fromEntries(matches.map(m => [m.id, m]))
     const uniqueExternalIds = [...new Set(bets.map(b => matchMap[b.match_id]?.external_id).filter(Boolean))]
 
-    const statsMap: Record<string, { stats: any; firstThrower: 'home' | 'away' | null }> = {}
+    const statsMap: Record<string, { stats: Record<string, { [key: string]: unknown }> | null; firstThrower: 'home' | 'away' | null }> = {}
 
     for (const externalId of uniqueExternalIds) {
       const [stats, firstThrower] = await Promise.all([
@@ -90,9 +90,10 @@ export async function POST(request: Request) {
       evaluated: updates.length,
       matches: uniqueExternalIds.length,
     })
-  } catch (err: any) {
-    console.error('Evaluate error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err))
+    console.error('Evaluate error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
@@ -108,7 +109,7 @@ async function recalculateWeeklyScores() {
   // Sum points per user per week
   const scores: Record<string, Record<number, number>> = {}
   for (const bet of bets) {
-    const week = (bet.matches as any)?.week
+    const week = ((bet.matches as unknown) as { week: number } | null)?.week
     if (!week) continue
     if (!scores[bet.user_id]) scores[bet.user_id] = {}
     scores[bet.user_id][week] = (scores[bet.user_id][week] ?? 0) + (bet.points_earned ?? 0)

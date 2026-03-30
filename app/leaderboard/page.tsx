@@ -118,7 +118,8 @@ export default async function LeaderboardPage() {
                       .filter(s => s.week === week)
                       .map(s => [s.user_id, s])
                   )
-                  const weekWinnerId = sortedUsers.find(uid => weekScores[uid]?.week_winner)
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  const weekWinnerId = sortedUsers.find(uid => weekScores[uid]?.week_winner) // TODO: display week winner
                   return (
                     <tr key={week} className="border-b border-zinc-800/50 last:border-0">
                       <td className="px-4 py-3 text-zinc-400 text-xs">Night {week}</td>

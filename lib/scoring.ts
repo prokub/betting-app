@@ -6,7 +6,7 @@ interface MatchResult {
   score_home: number
   score_away: number
   winner: string
-  stats: Record<string, any> | null
+  stats: Record<string, { [key: string]: unknown }> | null
   firstThrower: 'home' | 'away' | null
 }
 
@@ -17,8 +17,8 @@ export function scoreBet(
 ): number {
   const { player_home, player_away, score_home, score_away, winner, stats, firstThrower } = result
 
-  const stat = (key: string, side: 'home' | 'away') =>
-    stats?.[key]?.[side === 'home' ? 'homeValue' : 'awayValue'] ?? 0
+  const stat = (key: string, side: 'home' | 'away'): number =>
+    (stats?.[key]?.[side === 'home' ? 'homeValue' : 'awayValue'] as number | undefined) ?? 0
 
   switch (betType) {
     case 'match_winner':

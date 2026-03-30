@@ -3,22 +3,7 @@ const BASE = 'https://www.sofascore.com/api/v1'
 // Hardcoded current season — update each January when new season starts
 const CURRENT_SEASON_ID = 84759
 
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Referer': 'https://www.sofascore.com/darts/tournament/international/premier-league-darts/11565',
-  'Origin': 'https://www.sofascore.com',
-  'sec-ch-ua': '"Google Chrome";v="123", "Not:A-Brand";v="8"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-  'sec-fetch-dest': 'empty',
-  'sec-fetch-mode': 'cors',
-  'sec-fetch-site': 'same-origin',
-  'Cache-Control': 'no-cache',
-  'Pragma': 'no-cache',
-}
+// Note: HEADERS were used for direct API calls but now using ScraperAPI proxy instead
 
 async function sfetch(url: string) {
     const proxyUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(url)}`
@@ -32,8 +17,20 @@ export async function getCurrentSeasonId(): Promise<number> {
   return CURRENT_SEASON_ID
 }
 
+interface SofascoreEvent {
+  id: number
+  homeTeam: { name: string }
+  awayTeam: { name: string }
+  startTimestamp: number
+  tournament?: { id: number; name: string }
+  status?: { code: number }
+  homeScore?: { current: number | null }
+  awayScore?: { current: number | null }
+  roundInfo?: { name: string }
+}
+
 // Upcoming matches (not yet played)
-export async function fetchUpcomingEvents(seasonId: number): Promise<any[]> {
+export async function fetchUpcomingEvents(seasonId: number): Promise<SofascoreEvent[]> {
   const data = await sfetch(
     `${BASE}/unique-tournament/11565/season/${seasonId}/events/next/0`
   )
@@ -41,7 +38,7 @@ export async function fetchUpcomingEvents(seasonId: number): Promise<any[]> {
 }
 
 // Finished matches
-export async function fetchFinishedEvents(seasonId: number): Promise<any[]> {
+export async function fetchFinishedEvents(seasonId: number): Promise<SofascoreEvent[]> {
   const data = await sfetch(
     `${BASE}/unique-tournament/11565/season/${seasonId}/events/last/0`
   )
@@ -49,10 +46,10 @@ export async function fetchFinishedEvents(seasonId: number): Promise<any[]> {
 }
 
 // Per-match statistics — only available when status.code === 100
-export async function fetchEventStatistics(eventId: number): Promise<Record<string, any> | null> {
+export async function fetchEventStatistics(eventId: number): Promise<Record<string, { [key: string]: unknown }> | null> {
   try {
     const data = await sfetch(`${BASE}/event/${eventId}/statistics`)
-    const items: any[] = data.statistics?.[0]?.groups?.[0]?.statisticsItems ?? []
+    const items = (data.statistics?.[0]?.groups?.[0]?.statisticsItems ?? []) as Array<{ key: string; [key: string]: unknown }>
     return Object.fromEntries(items.map(s => [s.key, s]))
   } catch {
     return null
@@ -60,7 +57,7 @@ export async function fetchEventStatistics(eventId: number): Promise<Record<stri
 }
 
 // Point-by-point — used to determine who threw first in leg 1
-export async function fetchFirstThrower(eventId: number): Promise<string | null> {
+export async function fetchFirstThrower(eventId: number): Promise<'home' | 'away' | null> {
   try {
     const data = await sfetch(`${BASE}/event/${eventId}/point-by-point`)
     const firstPoint = data.pointByPoint?.[0]?.legs?.[0]?.points?.[0]
@@ -73,7 +70,7 @@ export async function fetchFirstThrower(eventId: number): Promise<string | null>
 }
 
 // Parse raw Sofascore events into DB rows
-export function parseEvents(events: any[]) {
+export function parseEvents(events: SofascoreEvent[]) {
   return events.map(e => {
     const nightMatch = e.tournament?.name?.match(/Night (\d+)/)
     const week = nightMatch ? parseInt(nightMatch[1]) : 0
