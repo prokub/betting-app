@@ -5,7 +5,7 @@
  * - Point calculation
  */
 
-import { BET_TYPE_CONFIG } from './types'
+import { BET_TYPE_CONFIG, BetType } from './types'
 
 /**
  * Check if betting window is closed for a match
@@ -89,6 +89,76 @@ export function getTournamentBetTypes() {
   return Object.entries(BET_TYPE_CONFIG)
     .filter(([, config]) => config.round === 'tournament')
     .map(([type]) => type)
+}
+
+/**
+ * Check if a match_id represents a tournament bet (synthetic/non-match)
+ */
+export function isTournamentMatchId(matchId: string | null): boolean {
+  return matchId?.startsWith('TOURNAMENT_') ?? false
+}
+
+/**
+ * Get synthetic match ID for finalist predictions
+ */
+export function getTournamentFinalistsMatchId(): string {
+  return 'TOURNAMENT_FINALISTS'
+}
+
+/**
+ * Validate prediction format for a given bet type
+ * Ensures prediction matches expected structure
+ */
+export function validatePredictionFormat(betType: BetType, prediction: string): {
+  valid: boolean
+  error?: string
+} {
+  switch (betType) {
+    case 'finalist_prediction': {
+      try {
+        const predictions = JSON.parse(prediction) as unknown
+        if (!Array.isArray(predictions) || predictions.length !== 2) {
+          return { valid: false, error: 'Finalist prediction must be JSON array with exactly 2 player names' }
+        }
+        if (!predictions.every(p => typeof p === 'string' && p.length > 0)) {
+          return { valid: false, error: 'All predictions must be non-empty strings' }
+        }
+        return { valid: true }
+      } catch {
+        return { valid: false, error: 'Finalist prediction must be valid JSON' }
+      }
+    }
+
+    case 'final_winner': {
+      if (typeof prediction !== 'string' || prediction.length === 0) {
+        return { valid: false, error: 'Final winner must be a player name' }
+      }
+      return { valid: true }
+    }
+
+    case 'match_winner':
+    case 'most_180s':
+    case 'highest_checkout':
+    case 'higher_avg':
+    case 'first_thrower': {
+      if (typeof prediction !== 'string' || prediction.length === 0) {
+        return { valid: false, error: 'Prediction must be a non-empty string' }
+      }
+      return { valid: true }
+    }
+
+    case 'checkout_over_105':
+    case 'legs_over_9_5':
+    case '180s_over_6_5': {
+      if (!['yes', 'no', 'over', 'under'].includes(prediction)) {
+        return { valid: false, error: `Prediction must be one of: yes, no, over, under` }
+      }
+      return { valid: true }
+    }
+
+    default:
+      return { valid: false, error: 'Unknown bet type' }
+  }
 }
 
 /**

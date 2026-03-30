@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BET_TYPE_CONFIG, BetType } from '@/lib/types'
+import { BET_TYPE_CONFIG } from '@/lib/types'
 
 export function ScoringLegend() {
   const [isExpanded, setIsExpanded] = useState(false)

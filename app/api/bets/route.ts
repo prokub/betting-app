@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { BetType } from '@/lib/types'
-import { validateBetPlacement } from '@/lib/betting-rules'
+import { validateBetPlacement, validatePredictionFormat } from '@/lib/betting-rules'
 
 const VALID_BET_TYPES: BetType[] = [
   'match_winner', 'most_180s', 'highest_checkout', 'checkout_over_105',
   'higher_avg', 'legs_over_9_5', '180s_over_6_5', 'first_thrower',
+  'finalist_prediction', 'final_winner',
 ]
 
 export async function POST(request: Request) {
@@ -18,6 +19,12 @@ export async function POST(request: Request) {
 
   if (!VALID_BET_TYPES.includes(bet_type)) {
     return NextResponse.json({ error: 'Invalid bet type' }, { status: 400 })
+  }
+
+  // Validate prediction format for the bet type
+  const predictionValidation = validatePredictionFormat(bet_type, prediction)
+  if (!predictionValidation.valid) {
+    return NextResponse.json({ error: predictionValidation.error }, { status: 400 })
   }
 
   // Verify match is still upcoming and hasn't started

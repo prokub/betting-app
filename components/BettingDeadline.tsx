@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { isBettingClosed } from '@/lib/betting-rules'
 
 interface BettingDeadlineProps {
   tournamentStartDate: string

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { fetchEventStatistics, fetchFirstThrower } from '@/lib/sofascore'
-import { scoreBet } from '@/lib/scoring'
+import { scoreBet, scoreTournamentBet, getTournamentContext } from '@/lib/scoring'
 import { BetType } from '@/lib/types'
+import { isTournamentMatchId } from '@/lib/betting-rules'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -55,14 +56,30 @@ export async function POST(request: Request) {
     // 4. Score each bet
     const updates: { id: string; points_earned: number }[] = []
 
+    // Get tournament context if final is finished
+    const finalMatch = matches.find(m => m.round_name === 'Final')
+    const tournamentContext = finalMatch ? getTournamentContext(finalMatch) : null
+
     for (const bet of bets) {
       const match = matchMap[bet.match_id]
       if (!match) continue
 
+      const betType = bet.bet_type as BetType
+
+      // Handle tournament-level bets
+      if (isTournamentMatchId(match.id)) {
+        if (!tournamentContext) continue // Can't score tournament bets without final result
+
+        const points = scoreTournamentBet(betType, bet.prediction, tournamentContext)
+        updates.push({ id: bet.id, points_earned: points })
+        continue
+      }
+
+      // Handle match-level bets
       const { stats, firstThrower } = statsMap[match.external_id] ?? {}
       if (!stats) continue // stats not available yet, skip
 
-      const points = scoreBet(bet.bet_type as BetType, bet.prediction, {
+      const points = scoreBet(betType, bet.prediction, {
         player_home: match.player_home,
         player_away: match.player_away,
         score_home: match.score_home,

@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import NightSection from '@/components/NightSection'
+import { ScoringLegend } from '@/components/ScoringLegend'
+import { BettingDeadline } from '@/components/BettingDeadline'
+import { BettingInstructions } from '@/components/BettingInstructions'
 import { getUpcomingMatchesWithBets } from '@/lib/queries'
 import { Match } from '@/lib/types'
 
@@ -17,6 +20,9 @@ export default async function Home() {
     .single()
 
   const { matches, bets } = await getUpcomingMatchesWithBets(user.id)
+
+  // Get tournament start date (first quarterfinal match)
+  const tournamentStartDate = matches.length > 0 ? matches[0].match_date : new Date().toISOString()
 
   // Group matches by week (night number)
   const byWeek = matches.reduce<Record<number, Match[]>>((acc, match) => {
@@ -35,6 +41,10 @@ export default async function Home() {
           <h1 className="text-2xl font-bold text-white">Place your bets</h1>
           <p className="text-zinc-400 text-sm mt-1">Premier League Darts 2026</p>
         </div>
+
+        <BettingInstructions />
+        <BettingDeadline tournamentStartDate={tournamentStartDate} />
+        <ScoringLegend />
 
         {weeks.length === 0 ? (
           <div className="text-center py-16 text-zinc-500">

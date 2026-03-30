@@ -1,46 +1,62 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
 
-  useEffect(() => {
-    if (searchParams.get('registered') === 'true') {
-      setSuccessMessage('Account created! You can now sign in.')
-    }
-  }, [searchParams])
-
-  async function handleLogin(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword(
+      // Sign up with Supabase
+      const { data, error: signupError } = await supabase.auth.signUp({
         email,
-        password
-      )
+        password,
+      })
 
-      if (signInError) {
-        setError(signInError.message)
+      if (signupError) {
+        setError(signupError.message)
         setLoading(false)
         return
       }
 
-      router.push('/')
+      if (!data.user) {
+        setError('Failed to create account')
+        setLoading(false)
+        return
+      }
+
+      // Create profile with display name
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          display_name: displayName || email.split('@')[0],
+        })
+
+      if (profileError) {
+        setError('Failed to create profile: ' + profileError.message)
+        setLoading(false)
+        return
+      }
+
+      // Redirect to login
+      router.push('/login?registered=true')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
       setLoading(false)
     }
   }
@@ -54,7 +70,20 @@ export default function LoginPage() {
           <p className="text-zinc-400 text-sm mt-2">Premier League Darts · Season 2026</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1">
+              Display Name
+            </label>
+            <input
+              type="text"
+              placeholder="Your display name"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-1">
               Email
@@ -75,10 +104,11 @@ export default function LoginPage() {
             </label>
             <input
               type="password"
-              placeholder="Your password"
+              placeholder="Choose a password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              minLength={6}
               className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition"
             />
           </div>
@@ -89,25 +119,19 @@ export default function LoginPage() {
             </div>
           )}
 
-          {successMessage && (
-            <div className="p-3 rounded-xl bg-emerald-950 border border-emerald-800 text-emerald-200 text-sm">
-              {successMessage}
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold transition disabled:opacity-50"
           >
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
 
         <p className="text-center text-zinc-400 text-sm mt-6">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-emerald-400 hover:text-emerald-300">
-            Create one
+          Already have an account?{' '}
+          <Link href="/login" className="text-emerald-400 hover:text-emerald-300">
+            Sign in
           </Link>
         </p>
       </div>

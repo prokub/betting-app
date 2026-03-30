@@ -10,6 +10,11 @@ interface MatchResult {
   firstThrower: 'home' | 'away' | null
 }
 
+interface TournamentContext {
+  finalists: string[] // Players who reached the final (should be exactly 2)
+  finalWinner: string | null // The tournament winner
+}
+
 export function scoreBet(
   betType: BetType,
   prediction: string,
@@ -87,5 +92,63 @@ export function scoreBet(
 
     default:
       return 0
+  }
+}
+
+/**
+ * Score tournament-level bets (finalist_prediction, final_winner)
+ * These bets are tied to synthetic "tournament matches" not actual match results
+ * @param betType bet type
+ * @param prediction prediction value (JSON string for finalist_prediction, player name for final_winner)
+ * @param context tournament context (finalists, finalWinner)
+ * @returns points earned
+ */
+export function scoreTournamentBet(
+  betType: BetType,
+  prediction: string,
+  context: TournamentContext
+): number {
+  switch (betType) {
+    case 'finalist_prediction': {
+      // prediction is JSON string: '["Player A", "Player B"]'
+      try {
+        const predictions = JSON.parse(prediction) as string[]
+        if (!Array.isArray(predictions) || predictions.length !== 2) {
+          return 0 // Invalid prediction format
+        }
+
+        const correctCount = predictions.filter(p => context.finalists.includes(p)).length
+
+        // 0 pts if neither correct, 5 pts if one correct, 10 pts if both correct
+        return correctCount * 5
+      } catch {
+        return 0 // JSON parse error
+      }
+    }
+
+    case 'final_winner': {
+      // prediction is the winner's name
+      return prediction === context.finalWinner ? 10 : 0
+    }
+
+    default:
+      return 0
+  }
+}
+
+/**
+ * Get tournament context from the final match
+ * The final match tells us both finalists (home/away) and the winner
+ * @param finalMatch the finished final match
+ * @returns TournamentContext with finalists and finalWinner
+ */
+export function getTournamentContext(finalMatch: {
+  player_home: string
+  player_away: string
+  winner: string | null
+}): TournamentContext {
+  return {
+    finalists: [finalMatch.player_home, finalMatch.player_away],
+    finalWinner: finalMatch.winner ?? null,
   }
 }
