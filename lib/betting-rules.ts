@@ -147,11 +147,17 @@ export function validatePredictionFormat(betType: BetType, prediction: string): 
       return { valid: true }
     }
 
-    case 'checkout_over_105':
+    case 'checkout_over_105': {
+      if (!['yes', 'no'].includes(prediction)) {
+        return { valid: false, error: 'Prediction must be one of: yes, no' }
+      }
+      return { valid: true }
+    }
+
     case 'legs_over_9_5':
     case '180s_over_6_5': {
-      if (!['yes', 'no', 'over', 'under'].includes(prediction)) {
-        return { valid: false, error: `Prediction must be one of: yes, no, over, under` }
+      if (!['over', 'under'].includes(prediction)) {
+        return { valid: false, error: 'Prediction must be one of: over, under' }
       }
       return { valid: true }
     }

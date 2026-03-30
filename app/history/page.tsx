@@ -106,7 +106,11 @@ export default async function HistoryPage() {
 
                       {/* Bets comparison */}
                       <div className="divide-y divide-zinc-800/60">
-                        {(Object.keys(BET_TYPE_CONFIG) as BetType[]).map(bt => {
+                        {(Object.keys(BET_TYPE_CONFIG) as BetType[]).filter(bt => {
+                          const round = BET_TYPE_CONFIG[bt].round
+                          if (match.round_name === 'Tournament') return round === 'tournament'
+                          return round === 'quarterfinals'
+                        }).map(bt => {
                           const config = BET_TYPE_CONFIG[bt]
                           const betsByUser = Object.fromEntries(
                             Object.keys(profileMap).map(uid => [

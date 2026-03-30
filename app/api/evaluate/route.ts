@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { fetchEventStatistics, fetchFirstThrower } from '@/lib/sofascore'
 import { scoreBet, scoreTournamentBet, getTournamentContext } from '@/lib/scoring'
 import { BetType } from '@/lib/types'
-import { isTournamentMatchId } from '@/lib/betting-rules'
+import { isTournamentMatchId, getTournamentFinalistsMatchId } from '@/lib/betting-rules'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -37,8 +37,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'No finished matches to evaluate' })
     }
 
-    // 2. Get all unevaluated bets for those matches
+    // 2. If the real final is finished, mark the TOURNAMENT_FINALISTS row as finished
+    //    so tournament bets can be evaluated
+    const finalMatch = matches.find(m => m.round_name === 'Final')
+    const tournamentMatchId = getTournamentFinalistsMatchId()
+
+    if (finalMatch) {
+      await supabaseAdmin
+        .from('matches')
+        .update({
+          status: 'finished',
+          week: finalMatch.week,
+          player_home: finalMatch.player_home,
+          player_away: finalMatch.player_away,
+          winner: finalMatch.winner,
+          score_home: finalMatch.score_home,
+          score_away: finalMatch.score_away,
+        })
+        .eq('id', tournamentMatchId)
+    }
+
+    // 3. Get all unevaluated bets for finished matches + tournament bets
     const matchIds = matches.map(m => m.id)
+    if (finalMatch && !matchIds.includes(tournamentMatchId)) {
+      matchIds.push(tournamentMatchId)
+    }
+
+    const matchMap = Object.fromEntries(matches.map(m => [m.id, m]))
+    if (finalMatch) {
+      matchMap[tournamentMatchId] = {
+        ...finalMatch,
+        id: tournamentMatchId,
+        week: finalMatch.week,
+        round_name: 'Tournament',
+      }
+    }
+
     const { data: bets, error: betError } = await supabaseAdmin
       .from('bets')
       .select('*')
@@ -50,9 +84,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'No unevaluated bets found' })
     }
 
-    // 3. Fetch stats for each unique match (with concurrency limit)
-    const matchMap = Object.fromEntries(matches.map(m => [m.id, m]))
-    const uniqueExternalIds = [...new Set(bets.map(b => matchMap[b.match_id]?.external_id).filter(Boolean))]
+    // 4. Fetch stats for each unique match (with concurrency limit)
+    const uniqueExternalIds = [...new Set(
+      bets
+        .filter(b => !isTournamentMatchId(b.match_id))
+        .map(b => matchMap[b.match_id]?.external_id)
+        .filter(Boolean)
+    )]
 
     const statsMap: Record<string, { stats: Record<string, { [key: string]: unknown }> | null; firstThrower: 'home' | 'away' | null }> = {}
 
@@ -66,11 +104,9 @@ export async function POST(request: Request) {
       await new Promise(r => setTimeout(r, 300))
     }
 
-    // 4. Score each bet
+    // 5. Score each bet
     const updates: { id: string; points_earned: number }[] = []
 
-    // Get tournament context if final is finished
-    const finalMatch = matches.find(m => m.round_name === 'Final')
     const tournamentContext = finalMatch ? getTournamentContext(finalMatch) : null
 
     for (const bet of bets) {
@@ -108,7 +144,7 @@ export async function POST(request: Request) {
       updates.push({ id: bet.id, points_earned: points })
     }
 
-    // 5. Write points back to bets table
+    // 6. Write points back to bets table
     const grouped = Map.groupBy(updates, u => u.points_earned)
     for (const [points, batch] of grouped) {
       await supabaseAdmin
@@ -117,7 +153,7 @@ export async function POST(request: Request) {
         .in('id', batch.map(b => b.id))
     }
 
-    // 6. Aggregate weekly scores per user
+    // 7. Aggregate weekly scores per user
     await recalculateWeeklyScores()
 
     return NextResponse.json({
@@ -144,7 +180,7 @@ async function recalculateWeeklyScores() {
   const scores: Record<string, Record<number, number>> = {}
   for (const bet of bets) {
     const week = ((bet.matches as unknown) as { week: number } | null)?.week
-    if (!week) continue
+    if (week == null) continue
     if (!scores[bet.user_id]) scores[bet.user_id] = {}
     scores[bet.user_id][week] = (scores[bet.user_id][week] ?? 0) + (bet.points_earned ?? 0)
   }
