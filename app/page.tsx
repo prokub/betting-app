@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import NightSection from '@/components/NightSection'
 import { ScoringLegend } from '@/components/ScoringLegend'
+import TournamentBetCard from '@/components/TournamentBetCard'
 import { BettingDeadline } from '@/components/BettingDeadline'
 import { BettingInstructions } from '@/components/BettingInstructions'
 import { getUpcomingMatchesWithBets } from '@/lib/queries'
 import { Match } from '@/lib/types'
+import { SEASON } from '@/lib/config'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -23,6 +25,11 @@ export default async function Home() {
 
   // Get tournament start date (first quarterfinal match)
   const tournamentStartDate = matches.length > 0 ? matches[0].match_date : new Date().toISOString()
+  const isTournamentLocked = new Date(tournamentStartDate) <= new Date()
+
+  // Separate tournament bets from match bets
+  const tournamentBets = bets.filter(b => b.match_id === 'TOURNAMENT_FINALISTS')
+  const matchBets = bets.filter(b => b.match_id !== 'TOURNAMENT_FINALISTS')
 
   // Group matches by week (night number)
   const byWeek = matches.reduce<Record<number, Match[]>>((acc, match) => {
@@ -35,11 +42,11 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? user.email ?? ''} />
+      <Navbar displayName={profile?.display_name ?? user.email ?? 'User'} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Place your bets</h1>
-          <p className="text-zinc-400 text-sm mt-1">Premier League Darts 2026</p>
+          <p className="text-zinc-400 text-sm mt-1">{SEASON.display}</p>
         </div>
 
         <BettingInstructions />
@@ -52,14 +59,21 @@ export default async function Home() {
             <p className="text-sm">No upcoming matches. Check back soon.</p>
           </div>
         ) : (
-          weeks.map(week => (
-            <NightSection
-              key={week}
-              week={week}
-              matches={byWeek[week]}
-              bets={bets}
+          <>
+            {weeks.map(week => (
+              <NightSection
+                key={week}
+                week={week}
+                matches={byWeek[week]}
+                bets={matchBets}
+              />
+            ))}
+            <TournamentBetCard
+              matches={matches}
+              existingBets={tournamentBets}
+              isLocked={isTournamentLocked}
             />
-          ))
+          </>
         )}
       </main>
     </div>

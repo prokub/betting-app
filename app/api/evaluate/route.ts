@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { env } from '@/lib/env'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { fetchEventStatistics, fetchFirstThrower } from '@/lib/sofascore'
 import { scoreBet, scoreTournamentBet, getTournamentContext } from '@/lib/scoring'
@@ -7,11 +8,23 @@ import { isTournamentMatchId } from '@/lib/betting-rules'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
+    // 0. Zero out bets on cancelled matches
+    const { data: cancelledMatches } = await supabaseAdmin
+      .from('matches').select('id').eq('status', 'cancelled')
+
+    if (cancelledMatches?.length) {
+      await supabaseAdmin
+        .from('bets')
+        .update({ points_earned: 0 })
+        .in('match_id', cancelledMatches.map(m => m.id))
+        .is('points_earned', null)
+    }
+
     // 1. Get all finished matches that still have unevaluated bets
     const { data: matches, error: matchError } = await supabaseAdmin
       .from('matches')
@@ -77,7 +90,10 @@ export async function POST(request: Request) {
 
       // Handle match-level bets
       const { stats, firstThrower } = statsMap[match.external_id] ?? {}
-      if (!stats) continue // stats not available yet, skip
+
+      // Bet types that require SofaScore stats
+      const needsStats: BetType[] = ['most_180s', 'highest_checkout', 'checkout_over_105', 'higher_avg', '180s_over_6_5', 'first_thrower']
+      if (!stats && needsStats.includes(betType)) continue
 
       const points = scoreBet(betType, bet.prediction, {
         player_home: match.player_home,
@@ -85,7 +101,7 @@ export async function POST(request: Request) {
         score_home: match.score_home,
         score_away: match.score_away,
         winner: match.winner,
-        stats,
+        stats: stats ?? null,
         firstThrower: firstThrower ?? null,
       })
 
@@ -93,11 +109,12 @@ export async function POST(request: Request) {
     }
 
     // 5. Write points back to bets table
-    for (const update of updates) {
+    const grouped = Map.groupBy(updates, u => u.points_earned)
+    for (const [points, batch] of grouped) {
       await supabaseAdmin
         .from('bets')
-        .update({ points_earned: update.points_earned })
-        .eq('id', update.id)
+        .update({ points_earned: points })
+        .in('id', batch.map(b => b.id))
     }
 
     // 6. Aggregate weekly scores per user
@@ -133,17 +150,21 @@ async function recalculateWeeklyScores() {
   }
 
   // Find winner per week
-  const weekWinners: Record<number, string> = {}
+  const weekWinners: Record<number, string[]> = {}
   const allWeeks = [...new Set(Object.values(scores).flatMap(u => Object.keys(u).map(Number)))]
 
   for (const week of allWeeks) {
     let maxPoints = -1
-    let winnerId = ''
-    for (const [userId, weekMap] of Object.entries(scores)) {
+    for (const [, weekMap] of Object.entries(scores)) {
       const pts = weekMap[week] ?? 0
-      if (pts > maxPoints) { maxPoints = pts; winnerId = userId }
+      if (pts > maxPoints) maxPoints = pts
     }
-    weekWinners[week] = winnerId
+    for (const [userId, weekMap] of Object.entries(scores)) {
+      if ((weekMap[week] ?? 0) === maxPoints) {
+        weekWinners[week] = weekWinners[week] || []
+        weekWinners[week].push(userId)
+      }
+    }
   }
 
   // Upsert weekly_scores
@@ -154,7 +175,7 @@ async function recalculateWeeklyScores() {
         user_id: userId,
         week: Number(week),
         points,
-        week_winner: weekWinners[Number(week)] === userId,
+        week_winner: weekWinners[Number(week)]?.includes(userId) ?? false,
       })
     }
   }

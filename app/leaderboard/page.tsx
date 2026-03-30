@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { BET_TYPE_CONFIG, BetType } from '@/lib/types'
+import { SEASON } from '@/lib/config'
 
 export default async function LeaderboardPage() {
   const supabase = await createClient()
@@ -52,7 +53,7 @@ export default async function LeaderboardPage() {
       const byType = Object.fromEntries(
         (Object.keys(BET_TYPE_CONFIG) as BetType[]).map(bt => {
           const typeBets = userBets.filter(b => b.bet_type === bt)
-          const correct = typeBets.filter(b => b.points_earned === 1).length
+          const correct = typeBets.filter(b => (b.points_earned ?? 0) > 0).length
           return [bt, { correct, total: typeBets.length }]
         })
       )
@@ -64,12 +65,12 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? ''} />
+      <Navbar displayName={profile?.display_name ?? 'User'} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-8">
 
         {/* Season standings */}
         <section>
-          <h1 className="text-2xl font-bold text-white mb-4">Season 2026</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">{SEASON.display}</h1>
           <div className="flex flex-col gap-3">
             {sortedUsers.map((uid, idx) => (
               <div key={uid} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
@@ -85,7 +86,7 @@ export default async function LeaderboardPage() {
                     <div className="flex gap-4 mt-1">
                       <span className="text-xs text-zinc-500">🏆 {weeklyWins[uid]} night{weeklyWins[uid] !== 1 ? 's' : ''} won</span>
                       <span className="text-xs text-zinc-500">
-                        {(bets ?? []).filter(b => b.user_id === uid && b.points_earned === 1).length}/
+                        {(bets ?? []).filter(b => b.user_id === uid && (b.points_earned ?? 0) > 0).length}/
                         {(bets ?? []).filter(b => b.user_id === uid).length} bets correct
                       </span>
                     </div>
@@ -118,8 +119,6 @@ export default async function LeaderboardPage() {
                       .filter(s => s.week === week)
                       .map(s => [s.user_id, s])
                   )
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  const weekWinnerId = sortedUsers.find(uid => weekScores[uid]?.week_winner) // TODO: display week winner
                   return (
                     <tr key={week} className="border-b border-zinc-800/50 last:border-0">
                       <td className="px-4 py-3 text-zinc-400 text-xs">Night {week}</td>

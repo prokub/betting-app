@@ -189,3 +189,19 @@ export function validateBetPlacement(matchDate: string, roundName: string | null
 
   return { allowed: true }
 }
+
+/**
+ * Validate tournament bet placement (only checks deadline)
+ */
+export function validateTournamentBetPlacement(tournamentStartDate: string): {
+  allowed: boolean
+  reason?: string
+} {
+  if (isBettingClosed(tournamentStartDate)) {
+    return {
+      allowed: false,
+      reason: 'Betting window closed — tournament has started',
+    }
+  }
+  return { allowed: true }
+}

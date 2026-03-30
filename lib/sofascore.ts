@@ -1,20 +1,19 @@
-const BASE = 'https://www.sofascore.com/api/v1'
+import { env } from '@/lib/env'
+import { SEASON, SOFASCORE_STATUS } from '@/lib/config'
 
-// Hardcoded current season — update each January when new season starts
-const CURRENT_SEASON_ID = 84759
+const BASE = 'https://www.sofascore.com/api/v1'
 
 // Note: HEADERS were used for direct API calls but now using ScraperAPI proxy instead
 
 async function sfetch(url: string) {
-    const proxyUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(url)}`
+    const proxyUrl = `http://api.scraperapi.com?api_key=${env.SCRAPER_API_KEY}&url=${encodeURIComponent(url)}`
     const res = await fetch(proxyUrl, { next: { revalidate: 0 } })
     if (!res.ok) throw new Error(`Sofascore ${res.status}: ${url}`)
     return res.json()
   }
 
 export async function getCurrentSeasonId(): Promise<number> {
-  // Use hardcoded ID to avoid Cloudflare blocking the seasons endpoint
-  return CURRENT_SEASON_ID
+  return SEASON.id
 }
 
 interface SofascoreEvent {
@@ -32,7 +31,7 @@ interface SofascoreEvent {
 // Upcoming matches (not yet played)
 export async function fetchUpcomingEvents(seasonId: number): Promise<SofascoreEvent[]> {
   const data = await sfetch(
-    `${BASE}/unique-tournament/11565/season/${seasonId}/events/next/0`
+    `${BASE}/unique-tournament/${SEASON.tournamentId}/season/${seasonId}/events/next/0`
   )
   return data.events ?? []
 }
@@ -40,7 +39,7 @@ export async function fetchUpcomingEvents(seasonId: number): Promise<SofascoreEv
 // Finished matches
 export async function fetchFinishedEvents(seasonId: number): Promise<SofascoreEvent[]> {
   const data = await sfetch(
-    `${BASE}/unique-tournament/11565/season/${seasonId}/events/last/0`
+    `${BASE}/unique-tournament/${SEASON.tournamentId}/season/${seasonId}/events/last/0`
   )
   return data.events ?? []
 }
@@ -77,7 +76,10 @@ export function parseEvents(events: SofascoreEvent[]) {
 
     const homeScore = e.homeScore?.current ?? null
     const awayScore = e.awayScore?.current ?? null
-    const status = e.status?.code === 100 ? 'finished' : 'upcoming'
+    const statusCode = e.status?.code
+    const status = statusCode === SOFASCORE_STATUS.FINISHED ? 'finished'
+      : statusCode === SOFASCORE_STATUS.WALKOVER ? 'cancelled'
+      : 'upcoming'
 
     let winner: string | null = null
     if (status === 'finished' && homeScore !== null && awayScore !== null) {

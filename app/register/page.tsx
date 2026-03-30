@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { SEASON } from '@/lib/config'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -20,39 +21,17 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // Sign up with Supabase
-      const { data, error: signupError } = await supabase.auth.signUp({
+      const { error: signupError } = await supabase.auth.signUp({
         email,
         password,
+        options: { data: { display_name: displayName || email.split('@')[0] } },
       })
 
       if (signupError) {
         setError(signupError.message)
-        setLoading(false)
         return
       }
 
-      if (!data.user) {
-        setError('Failed to create account')
-        setLoading(false)
-        return
-      }
-
-      // Create profile with display name
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          display_name: displayName || email.split('@')[0],
-        })
-
-      if (profileError) {
-        setError('Failed to create profile: ' + profileError.message)
-        setLoading(false)
-        return
-      }
-
-      // Redirect to login
       router.push('/login?registered=true')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -67,7 +46,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🎯</div>
           <h1 className="text-2xl font-bold text-white">Darts Bets</h1>
-          <p className="text-zinc-400 text-sm mt-2">Premier League Darts · Season 2026</p>
+          <p className="text-zinc-400 text-sm mt-2">{SEASON.display}</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">

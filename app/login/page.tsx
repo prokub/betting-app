@@ -1,11 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { SEASON } from '@/lib/config'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,7 +26,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
-      setSuccessMessage('Account created! You can now sign in.')
+      setSuccessMessage('Account created! Check your email to confirm, then sign in.')
+    }
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(errorParam)
     }
   }, [searchParams])
 
@@ -27,20 +40,20 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword(
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password
-      )
+        password,
+      })
 
       if (signInError) {
         setError(signInError.message)
-        setLoading(false)
         return
       }
 
       router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
       setLoading(false)
     }
   }
@@ -51,7 +64,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🎯</div>
           <h1 className="text-2xl font-bold text-white">Darts Bets</h1>
-          <p className="text-zinc-400 text-sm mt-2">Premier League Darts · Season 2026</p>
+          <p className="text-zinc-400 text-sm mt-2">{SEASON.display}</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -105,7 +118,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-zinc-400 text-sm mt-6">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/register" className="text-emerald-400 hover:text-emerald-300">
             Create one
           </Link>

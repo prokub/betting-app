@@ -17,7 +17,7 @@ export default async function HistoryPage() {
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
-    .eq('status', 'finished')
+    .in('status', ['finished', 'cancelled'])
     .order('match_date', { ascending: false })
 
   const matchIds = (matches ?? []).map(m => m.id)
@@ -39,7 +39,7 @@ export default async function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? ''} />
+      <Navbar displayName={profile?.display_name ?? 'User'} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-8">
         <h1 className="text-2xl font-bold text-white">History</h1>
 
@@ -85,15 +85,20 @@ export default async function HistoryPage() {
                     <div key={match.id} className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
                       {/* Match result header */}
                       <div className="px-4 py-3 border-b border-zinc-800">
-                        <div className="text-xs text-zinc-500 mb-1">{match.round_name}</div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-zinc-500">{match.round_name}</span>
+                          {match.status === 'cancelled' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/40 text-red-400 font-medium">Cancelled</span>
+                          )}
+                        </div>
                         <div className="flex items-center justify-between">
-                          <span className={`font-semibold text-sm ${match.winner === match.player_home ? 'text-white' : 'text-zinc-500'}`}>
+                          <span className={`font-semibold text-sm ${match.status === 'cancelled' ? 'text-zinc-500' : match.winner === match.player_home ? 'text-white' : 'text-zinc-500'}`}>
                             {match.player_home}
                           </span>
                           <span className="text-white font-bold text-lg tracking-wider">
-                            {match.score_home} – {match.score_away}
+                            {match.status === 'cancelled' ? 'W/O' : `${match.score_home} – ${match.score_away}`}
                           </span>
-                          <span className={`font-semibold text-sm text-right ${match.winner === match.player_away ? 'text-white' : 'text-zinc-500'}`}>
+                          <span className={`font-semibold text-sm text-right ${match.status === 'cancelled' ? 'text-zinc-500' : match.winner === match.player_away ? 'text-white' : 'text-zinc-500'}`}>
                             {match.player_away}
                           </span>
                         </div>
@@ -116,7 +121,7 @@ export default async function HistoryPage() {
                               <div className="flex gap-3">
                                 {Object.entries(betsByUser).map(([uid, bet]) => (
                                   <div key={uid} className={`flex-1 rounded-xl px-3 py-2 text-center border ${
-                                    bet?.points_earned === 1
+                                    bet?.points_earned && bet.points_earned > 0
                                       ? 'bg-emerald-950/40 border-emerald-800'
                                       : bet?.points_earned === 0
                                       ? 'bg-red-950/30 border-red-900/50'
@@ -127,8 +132,8 @@ export default async function HistoryPage() {
                                       {bet?.prediction ?? <span className="text-zinc-600">no bet</span>}
                                     </div>
                                     {bet?.points_earned != null && (
-                                      <div className={`text-xs font-bold mt-0.5 ${bet.points_earned === 1 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {bet.points_earned === 1 ? '+1pt' : '0pt'}
+                                      <div className={`text-xs font-bold mt-0.5 ${bet.points_earned > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {bet.points_earned > 0 ? `+${bet.points_earned}pt` : '0pt'}
                                       </div>
                                     )}
                                   </div>

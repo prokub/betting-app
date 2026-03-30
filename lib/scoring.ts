@@ -1,4 +1,4 @@
-import { BetType } from './types'
+import { BetType, BET_TYPE_CONFIG } from './types'
 
 interface MatchResult {
   player_home: string
@@ -21,61 +21,62 @@ export function scoreBet(
   result: MatchResult
 ): number {
   const { player_home, player_away, score_home, score_away, winner, stats, firstThrower } = result
+  const pts = BET_TYPE_CONFIG[betType]?.points ?? 0
 
   const stat = (key: string, side: 'home' | 'away'): number =>
     (stats?.[key]?.[side === 'home' ? 'homeValue' : 'awayValue'] as number | undefined) ?? 0
 
   switch (betType) {
     case 'match_winner':
-      return prediction === winner ? 1 : 0
+      return prediction === winner ? pts : 0
 
     case 'most_180s': {
       const home180s = stat('Thrown180', 'home')
       const away180s = stat('Thrown180', 'away')
-      if (home180s === away180s) return 1 // tie — both correct
+      if (home180s === away180s) return 1 // tie — flat 1pt for everyone
       const most = home180s > away180s ? player_home : player_away
-      return prediction === most ? 1 : 0
+      return prediction === most ? pts : 0
     }
 
     case 'highest_checkout': {
       const homeCheckout = stat('HighestCheckout', 'home')
       const awayCheckout = stat('HighestCheckout', 'away')
-      if (homeCheckout === awayCheckout) return 1 // tie — both correct
+      if (homeCheckout === awayCheckout) return 1 // tie — flat 1pt for everyone
       const highest = homeCheckout > awayCheckout ? player_home : player_away
-      return prediction === highest ? 1 : 0
+      return prediction === highest ? pts : 0
     }
 
     case 'checkout_over_105': {
       const homeCheckout = stat('HighestCheckout', 'home')
       const awayCheckout = stat('HighestCheckout', 'away')
       const hasOver105 = Math.max(homeCheckout, awayCheckout) > 105.5
-      return prediction === (hasOver105 ? 'yes' : 'no') ? 1 : 0
+      return prediction === (hasOver105 ? 'yes' : 'no') ? pts : 0
     }
 
     case 'higher_avg': {
       const homeAvg = stat('Average3Darts', 'home')
       const awayAvg = stat('Average3Darts', 'away')
-      if (homeAvg === awayAvg) return 1 // tie — both correct
+      if (homeAvg === awayAvg) return 1 // tie — flat 1pt for everyone
       const higher = homeAvg > awayAvg ? player_home : player_away
-      return prediction === higher ? 1 : 0
+      return prediction === higher ? pts : 0
     }
 
     case 'legs_over_9_5': {
       const totalLegs = score_home + score_away
       const isOver = totalLegs > 9.5
-      return prediction === (isOver ? 'over' : 'under') ? 1 : 0
+      return prediction === (isOver ? 'over' : 'under') ? pts : 0
     }
 
     case '180s_over_6_5': {
       const total180s = stat('Thrown180', 'home') + stat('Thrown180', 'away')
       const isOver = total180s > 6.5
-      return prediction === (isOver ? 'over' : 'under') ? 1 : 0
+      return prediction === (isOver ? 'over' : 'under') ? pts : 0
     }
 
     case 'first_thrower': {
       if (!firstThrower) return 0
       const firstThrowerName = firstThrower === 'home' ? player_home : player_away
-      return prediction === firstThrowerName ? 1 : 0
+      return prediction === firstThrowerName ? pts : 0
     }
 
     case 'finalist_prediction': {

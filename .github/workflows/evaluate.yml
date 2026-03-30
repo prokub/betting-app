@@ -2,7 +2,7 @@ name: Evaluate bets
 
 on:
   schedule:
-    - cron: '0 23 * * 4'  # Every Thursday at 11pm UTC (after matches finish)
+    - cron: '0 6 * * 5'  # Every Friday at 6am UTC
   workflow_dispatch:
 
 jobs:

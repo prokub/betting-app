@@ -1,4 +1,4 @@
-export type MatchStatus = 'upcoming' | 'finished'
+export type MatchStatus = 'upcoming' | 'finished' | 'cancelled'
 
 export type BetType =
   | 'match_winner'

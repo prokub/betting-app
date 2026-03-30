@@ -17,7 +17,7 @@ export default function MatchBetCard({ match, existingBets }: Props) {
   const [saved, setSaved] = useState<Record<string, boolean>>({})
 
 
-  const betTypes = Object.keys(BET_TYPE_CONFIG) as BetType[]
+  const betTypes = (Object.keys(BET_TYPE_CONFIG) as BetType[]).filter(bt => BET_TYPE_CONFIG[bt].round === 'quarterfinals')
   const allPlaced = betTypes.every(bt => predictions[bt])
   const totalPlaced = betTypes.filter(bt => predictions[bt]).length
 
@@ -27,16 +27,21 @@ export default function MatchBetCard({ match, existingBets }: Props) {
     setSaving(prev => ({ ...prev, [betType]: true }))
     setSaved(prev => ({ ...prev, [betType]: false }))
 
-    const res = await fetch('/api/bets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ match_id: match.id, bet_type: betType, prediction: value }),
-    })
+    try {
+      const res = await fetch('/api/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: match.id, bet_type: betType, prediction: value }),
+      })
 
-    setSaving(prev => ({ ...prev, [betType]: false }))
-    if (res.ok) {
-      setSaved(prev => ({ ...prev, [betType]: true }))
-      setTimeout(() => setSaved(prev => ({ ...prev, [betType]: false })), 2000)
+      if (res.ok) {
+        setSaved(prev => ({ ...prev, [betType]: true }))
+        setTimeout(() => setSaved(prev => ({ ...prev, [betType]: false })), 2000)
+      }
+    } catch {
+      setPredictions(prev => ({ ...prev, [betType]: betMap[betType] ?? '' }))
+    } finally {
+      setSaving(prev => ({ ...prev, [betType]: false }))
     }
   }
 
@@ -57,7 +62,7 @@ export default function MatchBetCard({ match, existingBets }: Props) {
               ? 'bg-red-900/40 text-red-400'
               : 'bg-emerald-900/40 text-emerald-400'
           }`}>
-            {isLocked ? 'Locked' : `${totalPlaced}/8 placed`}
+            {isLocked ? 'Locked' : `${totalPlaced}/${betTypes.length} placed`}
           </span>
         </div>
         <div className="flex items-center justify-between">

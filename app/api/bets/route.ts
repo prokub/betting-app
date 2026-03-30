@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { BetType } from '@/lib/types'
-import { validateBetPlacement, validatePredictionFormat } from '@/lib/betting-rules'
+import { validateBetPlacement, validatePredictionFormat, validateTournamentBetPlacement, isTournamentMatchId } from '@/lib/betting-rules'
 
 const VALID_BET_TYPES: BetType[] = [
   'match_winner', 'most_180s', 'highest_checkout', 'checkout_over_105',
@@ -27,21 +27,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: predictionValidation.error }, { status: 400 })
   }
 
-  // Verify match is still upcoming and hasn't started
-  const { data: match } = await supabaseAdmin
-    .from('matches')
-    .select('status, match_date, round_name')
-    .eq('id', match_id)
-    .single()
+  if (isTournamentMatchId(match_id)) {
+    // Tournament bets: validate deadline using earliest upcoming match
+    const { data: earliest } = await supabaseAdmin
+      .from('matches')
+      .select('match_date')
+      .eq('status', 'upcoming')
+      .eq('round_name', 'Quarterfinals')
+      .order('match_date', { ascending: true })
+      .limit(1)
+      .single()
 
-  if (!match) {
-    return NextResponse.json({ error: 'Match not found' }, { status: 404 })
-  }
+    if (!earliest) {
+      return NextResponse.json({ error: 'No upcoming matches found' }, { status: 400 })
+    }
 
-  // Validate betting placement (deadline + round restrictions)
-  const validation = validateBetPlacement(match.match_date, match.round_name)
-  if (!validation.allowed) {
-    return NextResponse.json({ error: validation.reason }, { status: 400 })
+    const validation = validateTournamentBetPlacement(earliest.match_date)
+    if (!validation.allowed) {
+      return NextResponse.json({ error: validation.reason }, { status: 400 })
+    }
+  } else {
+    // Regular bets: verify match exists and validate placement
+    const { data: match } = await supabaseAdmin
+      .from('matches')
+      .select('status, match_date, round_name')
+      .eq('id', match_id)
+      .single()
+
+    if (!match) {
+      return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+    }
+
+    if (match.status !== 'upcoming') {
+      return NextResponse.json({ error: 'Match is no longer accepting bets' }, { status: 400 })
+    }
+
+    const validation = validateBetPlacement(match.match_date, match.round_name)
+    if (!validation.allowed) {
+      return NextResponse.json({ error: validation.reason }, { status: 400 })
+    }
   }
 
   // Upsert — allows changing prediction before match starts

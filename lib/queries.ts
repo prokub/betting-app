@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { Match, Bet } from '@/lib/types'
+import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
 
 export async function getUpcomingMatchesWithBets(userId: string) {
   const supabase = await createClient()
 
   // Get upcoming quarterfinal matches only, ordered by date
-  const { data: matches, error: matchError } = await supabase
+  const { data: allMatches, error: matchError } = await supabase
     .from('matches')
     .select('*')
     .eq('status', 'upcoming')
@@ -14,8 +15,15 @@ export async function getUpcomingMatchesWithBets(userId: string) {
 
   if (matchError) throw matchError
 
-  // Get this user's bets for those matches
-  const matchIds = matches?.map(m => m.id) ?? []
+  // Only show matches from the next (earliest) week
+  const nextWeek = allMatches?.[0]?.week
+  const matches = nextWeek != null
+    ? allMatches!.filter(m => m.week === nextWeek)
+    : []
+
+  // Get this user's bets for those matches + tournament bets
+  const tournamentMatchId = getTournamentFinalistsMatchId()
+  const matchIds = [...matches.map(m => m.id), tournamentMatchId]
   const { data: bets, error: betError } = await supabase
     .from('bets')
     .select('*')
