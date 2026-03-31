@@ -18,6 +18,7 @@ export type BetRound = 'quarterfinals' | 'tournament'
 export interface Match {
   id: string
   external_id: string
+  season: number
   week: number
   night_id: number | null
   round_name: string | null   // "Quarterfinals" | "Semifinals" | "Final"

@@ -90,6 +90,7 @@ export function parseEvents(events: SofascoreEvent[]) {
 
     return {
       external_id: String(e.id),
+      season: SEASON.year,
       week,
       night_id: e.tournament?.id ?? null,
       round_name: e.roundInfo?.name ?? null,   // "Quarterfinals" / "Semifinals" / "Final"

@@ -8,6 +8,7 @@ import {
   parseEvents,
 } from '@/lib/sofascore'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
+import { SEASON } from '@/lib/config'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
         .insert({
           id: tournamentMatchId,
           external_id: tournamentMatchId,
+          season: SEASON.year,
           week: 0,
           status: 'upcoming',
           player_home: 'TBD',

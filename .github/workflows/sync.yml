@@ -3,8 +3,7 @@ name: Sync matches
 on:
   schedule:
     - cron: "0 6 * * 3" # Every Wednesday at 6am UTC
-    - cron: "0 6 * * 4" # Every Thursday at 6am UTC
-    - cron: "0 17 * * 4" # Every Thursday at 5pm UTC (~1h before matches) to catch same-day cancellations
+    - cron: "0 16 * * 4" # Every Thursday at 4pm UTC to catch same-day cancellations
   workflow_dispatch: # Also allows manual trigger from GitHub UI
 
 jobs:
