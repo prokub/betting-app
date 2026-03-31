@@ -33,12 +33,15 @@ export default async function HistoryPage() {
     .select('*')
     .in('match_id', matchIds)
 
-  // Fetch tournament bets
-  const tournamentMatchId = getTournamentFinalistsMatchId()
-  const { data: tournamentBets } = await supabase
-    .from('bets')
-    .select('*')
-    .eq('match_id', tournamentMatchId)
+  // Fetch tournament bets for all weeks
+  const allWeekNumbers = [...new Set((matches ?? []).map(m => m.week))]
+  const tournamentMatchIds = allWeekNumbers.map(w => getTournamentFinalistsMatchId(w))
+  const { data: tournamentBets } = tournamentMatchIds.length > 0
+    ? await supabase
+      .from('bets')
+      .select('*')
+      .in('match_id', tournamentMatchIds)
+    : { data: [] }
 
   const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.display_name]))
 
@@ -70,18 +73,21 @@ export default async function HistoryPage() {
           </div>
         )}
 
-        {weeks.map((week, i) => (
-          <HistoryNight
-            key={week}
-            week={week}
-            matches={byWeek[week]}
-            bets={bets ?? []}
-            finalMatch={finalByWeek[week] ?? null}
-            tournamentBets={tournamentBets ?? []}
-            profileMap={profileMap}
-            defaultOpen={i === 0}
-          />
-        ))}
+        {weeks.map((week, i) => {
+          const weekTournamentMatchId = getTournamentFinalistsMatchId(week)
+          return (
+            <HistoryNight
+              key={week}
+              week={week}
+              matches={byWeek[week]}
+              bets={bets ?? []}
+              finalMatch={finalByWeek[week] ?? null}
+              tournamentBets={(tournamentBets ?? []).filter(b => b.match_id === weekTournamentMatchId)}
+              profileMap={profileMap}
+              defaultOpen={i === 0}
+            />
+          )
+        })}
       </main>
     </div>
   )

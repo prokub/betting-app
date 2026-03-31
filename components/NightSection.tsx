@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { Match, Bet } from '@/lib/types'
+import { useBratislavaDate } from '@/hooks/useBratislavaDate'
 import MatchBetCard from './MatchBetCard'
 
 interface Props {
@@ -11,13 +11,9 @@ interface Props {
 }
 
 export default function NightSection({ week, matches, bets }: Props) {
-  const [dateStr, setDateStr] = useState('')
-  useEffect(() => {
-    const d = new Date(matches[0].match_date)
-    setDateStr(d.toLocaleDateString('en-GB', {
-      weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Bratislava'
-    }))
-  }, [matches])
+  const dateStr = useBratislavaDate(matches[0].match_date, {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
 
   return (
     <section>

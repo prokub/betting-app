@@ -37,15 +37,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'No finished matches to evaluate' })
     }
 
-    // 2. If the real final is finished, mark the TOURNAMENT_FINALISTS row as finished
+    // 2. If any finals are finished, mark per-week TOURNAMENT_FINALISTS rows as finished
     //    so tournament bets can be evaluated
-    const finalMatch = matches.find(m => m.round_name === 'Final')
-    const tournamentMatchId = getTournamentFinalistsMatchId()
+    const finalMatches = matches.filter(m => m.round_name === 'Final')
 
-    if (finalMatch) {
+    for (const finalMatch of finalMatches) {
+      const tournamentMatchId = getTournamentFinalistsMatchId(finalMatch.week)
       await supabaseAdmin
         .from('matches')
-        .update({
+        .upsert({
+          id: tournamentMatchId,
           status: 'finished',
           week: finalMatch.week,
           player_home: finalMatch.player_home,
@@ -53,18 +54,23 @@ export async function POST(request: Request) {
           winner: finalMatch.winner,
           score_home: finalMatch.score_home,
           score_away: finalMatch.score_away,
-        })
-        .eq('id', tournamentMatchId)
+          match_date: finalMatch.match_date,
+          external_id: tournamentMatchId,
+          season: finalMatch.season,
+          night_id: finalMatch.night_id,
+          round_name: 'Tournament',
+        }, { onConflict: 'id' })
     }
 
     // 3. Get all unevaluated bets for finished matches + tournament bets
     const matchIds = matches.map(m => m.id)
-    if (finalMatch && !matchIds.includes(tournamentMatchId)) {
-      matchIds.push(tournamentMatchId)
-    }
-
     const matchMap = Object.fromEntries(matches.map(m => [m.id, m]))
-    if (finalMatch) {
+
+    for (const finalMatch of finalMatches) {
+      const tournamentMatchId = getTournamentFinalistsMatchId(finalMatch.week)
+      if (!matchIds.includes(tournamentMatchId)) {
+        matchIds.push(tournamentMatchId)
+      }
       matchMap[tournamentMatchId] = {
         ...finalMatch,
         id: tournamentMatchId,
@@ -107,7 +113,11 @@ export async function POST(request: Request) {
     // 5. Score each bet
     const updates: { id: string; points_earned: number }[] = []
 
-    const tournamentContext = finalMatch ? getTournamentContext(finalMatch) : null
+    // Build tournament contexts per week from final matches
+    const tournamentContextByWeek: Record<number, ReturnType<typeof getTournamentContext>> = {}
+    for (const finalMatch of finalMatches) {
+      tournamentContextByWeek[finalMatch.week] = getTournamentContext(finalMatch)
+    }
 
     for (const bet of bets) {
       const match = matchMap[bet.match_id]
@@ -117,6 +127,7 @@ export async function POST(request: Request) {
 
       // Handle tournament-level bets
       if (isTournamentMatchId(match.id)) {
+        const tournamentContext = tournamentContextByWeek[match.week]
         if (!tournamentContext) continue // Can't score tournament bets without final result
 
         const points = scoreTournamentBet(betType, bet.prediction, tournamentContext)

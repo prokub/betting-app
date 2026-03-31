@@ -1,22 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { Match, Bet } from '@/lib/types'
+import { Match, Bet, BET_TYPE_CONFIG, DIFFICULTY_COLORS, fmtPts } from '@/lib/types'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
+import { useBetSave } from '@/hooks/useBetSave'
 
 interface Props {
+  week: number
   matches: Match[]
   existingBets: Bet[]
   isLocked: boolean
 }
 
-const TOURNAMENT_MATCH_ID = getTournamentFinalistsMatchId()
-
-export default function TournamentBetCard({ matches, existingBets, isLocked }: Props) {
-  // Collect unique players from all matches
+export default function TournamentBetCard({ week, matches, existingBets, isLocked }: Props) {
+  const TOURNAMENT_MATCH_ID = getTournamentFinalistsMatchId(week)
   const players = [...new Set(matches.flatMap(m => [m.player_home, m.player_away]))].sort()
 
-  // Load existing bets
   const existingFinalists = existingBets.find(b => b.bet_type === 'finalist_prediction')
   const existingWinner = existingBets.find(b => b.bet_type === 'final_winner')
 
@@ -32,59 +31,42 @@ export default function TournamentBetCard({ matches, existingBets, isLocked }: P
 
   const [finalists, setFinalists] = useState<string[]>(initialFinalists)
   const [winner, setWinner] = useState<string>(existingWinner?.prediction ?? '')
-  const [saving, setSaving] = useState<Record<string, boolean>>({})
-  const [saved, setSaved] = useState<Record<string, boolean>>({})
+  const { saving, saved, saveBet } = useBetSave()
 
-  async function saveBet(betType: string, prediction: string) {
-    setSaving(prev => ({ ...prev, [betType]: true }))
-    setSaved(prev => ({ ...prev, [betType]: false }))
-
-    try {
-      const res = await fetch('/api/bets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_id: TOURNAMENT_MATCH_ID, bet_type: betType, prediction }),
-      })
-
-      if (res.ok) {
-        setSaved(prev => ({ ...prev, [betType]: true }))
-        setTimeout(() => setSaved(prev => ({ ...prev, [betType]: false })), 2000)
-      }
-    } catch {
-      // Revert on network error
-      setFinalists(initialFinalists)
-      setWinner(existingWinner?.prediction ?? '')
-    } finally {
-      setSaving(prev => ({ ...prev, [betType]: false }))
-    }
-  }
-
-  function handleFinalistToggle(player: string) {
+  async function handleFinalistToggle(player: string) {
     if (isLocked) return
 
     if (finalists.includes(player)) {
-      // Deselect
       const updated = finalists.filter(p => p !== player)
       setFinalists(updated)
-      // Reset winner if deselected finalist was the winner
       if (winner === player) setWinner('')
       if (updated.length === 2) {
-        saveBet('finalist_prediction', JSON.stringify(updated))
+        const ok = await saveBet({ match_id: TOURNAMENT_MATCH_ID, bet_type: 'finalist_prediction', prediction: JSON.stringify(updated) })
+        if (!ok) {
+          setFinalists(initialFinalists)
+          setWinner(existingWinner?.prediction ?? '')
+        }
       }
     } else if (finalists.length < 2) {
-      // Select
       const updated = [...finalists, player]
       setFinalists(updated)
       if (updated.length === 2) {
-        saveBet('finalist_prediction', JSON.stringify(updated))
+        const ok = await saveBet({ match_id: TOURNAMENT_MATCH_ID, bet_type: 'finalist_prediction', prediction: JSON.stringify(updated) })
+        if (!ok) {
+          setFinalists(initialFinalists)
+          setWinner(existingWinner?.prediction ?? '')
+        }
       }
     }
   }
 
-  function handleWinnerSelect(player: string) {
+  async function handleWinnerSelect(player: string) {
     if (isLocked) return
     setWinner(player)
-    saveBet('final_winner', player)
+    const ok = await saveBet({ match_id: TOURNAMENT_MATCH_ID, bet_type: 'final_winner', prediction: player })
+    if (!ok) {
+      setWinner(existingWinner?.prediction ?? '')
+    }
   }
 
   return (
@@ -93,7 +75,7 @@ export default function TournamentBetCard({ matches, existingBets, isLocked }: P
       <div className="px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">
-            Tournament Bets
+            Night Bets
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             isLocked
@@ -112,7 +94,12 @@ export default function TournamentBetCard({ matches, existingBets, isLocked }: P
       {/* Finalist Prediction */}
       <div className="px-4 py-3 border-b border-zinc-800/60">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-zinc-400">Pick 2 finalists</p>
+          <p className="text-xs text-zinc-400">
+            Pick 2 finalists
+            <span className={`ml-1 font-semibold ${DIFFICULTY_COLORS[BET_TYPE_CONFIG.finalist_prediction.difficulty]?.text}`}>
+              {fmtPts(BET_TYPE_CONFIG.finalist_prediction.points)} each
+            </span>
+          </p>
           <span className="text-xs text-zinc-600 w-12 text-right">
             {saving.finalist_prediction ? 'Saving...' : saved.finalist_prediction ? '✓ Saved' : `${finalists.length}/2`}
           </span>
@@ -143,7 +130,12 @@ export default function TournamentBetCard({ matches, existingBets, isLocked }: P
       {/* Final Winner */}
       <div className="px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-zinc-400">Who wins the final?</p>
+          <p className="text-xs text-zinc-400">
+            Who wins the final?
+            <span className={`ml-1 font-semibold ${DIFFICULTY_COLORS[BET_TYPE_CONFIG.final_winner.difficulty]?.text}`}>
+              {fmtPts(BET_TYPE_CONFIG.final_winner.points)}
+            </span>
+          </p>
           <span className="text-xs text-zinc-600 w-12 text-right">
             {saving.final_winner ? 'Saving...' : saved.final_winner ? '✓ Saved' : ''}
           </span>
@@ -174,7 +166,7 @@ export default function TournamentBetCard({ matches, existingBets, isLocked }: P
       {!isLocked && finalists.length === 2 && winner && (
         <div className="px-4 py-3 border-t border-zinc-800 bg-emerald-950/30">
           <p className="text-xs text-emerald-400 text-center font-medium">
-            Tournament bets placed ✓ — you can still change them before the tournament starts
+            Night bets placed ✓ — you can still change them before the night starts
           </p>
         </div>
       )}

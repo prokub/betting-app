@@ -35,35 +35,38 @@ export async function POST(request: Request) {
 
     if (error) throw new Error(error.message ?? JSON.stringify(error))
 
-    // Ensure the synthetic tournament match row exists for tournament-level bets
-    // Only create it if it doesn't already exist — evaluate may have updated it to 'finished'
-    const tournamentMatchId = getTournamentFinalistsMatchId()
-    const { data: existingTournament } = await supabaseAdmin
-      .from('matches')
-      .select('id')
-      .eq('id', tournamentMatchId)
-      .single()
-
-    if (!existingTournament) {
-      const firstMatch = parsed.length > 0
-        ? parsed.reduce((earliest, m) => m.match_date < earliest.match_date ? m : earliest)
-        : null
-
-      const { error: tournamentError } = await supabaseAdmin
+    // Ensure per-week synthetic tournament match rows exist for tournament-level bets
+    const weekNumbers = [...new Set(parsed.map(m => m.week).filter(w => w > 0))]
+    for (const week of weekNumbers) {
+      const tournamentMatchId = getTournamentFinalistsMatchId(week)
+      const { data: existing } = await supabaseAdmin
         .from('matches')
-        .insert({
-          id: tournamentMatchId,
-          external_id: tournamentMatchId,
-          season: SEASON.year,
-          week: 0,
-          status: 'upcoming',
-          player_home: 'TBD',
-          player_away: 'TBD',
-          match_date: firstMatch?.match_date ?? new Date().toISOString(),
-          round_name: 'Tournament',
-        })
+        .select('id')
+        .eq('id', tournamentMatchId)
+        .single()
 
-      if (tournamentError) throw new Error(tournamentError.message ?? JSON.stringify(tournamentError))
+      if (!existing) {
+        const weekMatches = parsed.filter(m => m.week === week)
+        const firstMatch = weekMatches.length > 0
+          ? weekMatches.reduce((earliest, m) => m.match_date < earliest.match_date ? m : earliest)
+          : null
+
+        const { error: tournamentError } = await supabaseAdmin
+          .from('matches')
+          .insert({
+            id: tournamentMatchId,
+            external_id: tournamentMatchId,
+            season: SEASON.year,
+            week,
+            status: 'upcoming',
+            player_home: 'TBD',
+            player_away: 'TBD',
+            match_date: firstMatch?.match_date ?? new Date().toISOString(),
+            round_name: 'Tournament',
+          })
+
+        if (tournamentError) throw new Error(tournamentError.message ?? JSON.stringify(tournamentError))
+      }
     }
 
     return NextResponse.json({

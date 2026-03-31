@@ -22,8 +22,8 @@ export async function getUpcomingMatchesWithBets(userId: string) {
     : []
 
   // Get this user's bets for those matches + tournament bets
-  const tournamentMatchId = getTournamentFinalistsMatchId()
-  const matchIds = [...matches.map(m => m.id), tournamentMatchId]
+  const tournamentMatchId = nextWeek != null ? getTournamentFinalistsMatchId(nextWeek) : null
+  const matchIds = [...matches.map(m => m.id), ...(tournamentMatchId ? [tournamentMatchId] : [])]
   const { data: bets, error: betError } = await supabase
     .from('bets')
     .select('*')

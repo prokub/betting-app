@@ -13,6 +13,17 @@ export type BetType =
   | 'final_winner'
 
 export type BetDifficulty = 'easy' | 'medium' | 'hard' | 'very_hard'
+
+export const DIFFICULTY_COLORS: Record<BetDifficulty, { border: string; text: string }> = {
+  easy: { border: 'border-emerald-400', text: 'text-emerald-400' },
+  medium: { border: 'border-sky-400', text: 'text-sky-400' },
+  hard: { border: 'border-amber-400', text: 'text-amber-400' },
+  very_hard: { border: 'border-red-400', text: 'text-red-400' },
+}
+export function fmtPts(n: number): string {
+  return `${n}${n === 1 ? 'pt' : 'pts'}`
+}
+
 export type BetRound = 'quarterfinals' | 'tournament'
 
 export interface Match {
@@ -155,7 +166,7 @@ export const BET_TYPE_CONFIG: Record<BetType, {
     points: 5,
     difficulty: 'very_hard',
     round: 'tournament',
-    description: 'Predict 2 of 4 semifinalists to reach the final. 5 pts per correct prediction.',
+    description: 'Predict 2 of 4 players to reach the night\'s final. 5 pts per correct prediction.',
     options: () => [], // Handled specially in UI
   },
   final_winner: {
@@ -163,7 +174,7 @@ export const BET_TYPE_CONFIG: Record<BetType, {
     points: 10,
     difficulty: 'very_hard',
     round: 'tournament',
-    description: 'Predict the tournament winner. Only available after semifinals.',
+    description: 'Predict the winner of the night. 10 pts for a correct prediction.',
     options: () => [], // Handled specially in UI
   },
 }

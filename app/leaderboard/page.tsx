@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { BET_TYPE_CONFIG, BetType } from '@/lib/types'
+import { BET_TYPE_CONFIG, BetType, fmtPts } from '@/lib/types'
 import { SEASON } from '@/lib/config'
 
 export default async function LeaderboardPage() {
@@ -75,13 +75,13 @@ export default async function LeaderboardPage() {
             {sortedUsers.map((uid, idx) => (
               <div key={uid} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
                 <div className="flex items-center gap-3">
-                  <span className={`text-2xl font-bold ${idx === 0 ? 'text-yellow-400' : 'text-zinc-600'}`}>
+                  <span className={`text-2xl font-bold ${idx === 0 ? 'text-yellow-300' : 'text-zinc-600'}`}>
                     #{idx + 1}
                   </span>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className="text-white font-semibold">{profileMap[uid]}</span>
-                      <span className="text-2xl font-bold text-emerald-400">{seasonTotals[uid]}pts</span>
+                      <span className="text-2xl font-bold text-emerald-400">{fmtPts(seasonTotals[uid])}</span>
                     </div>
                     <div className="flex gap-4 mt-1">
                       <span className="text-xs text-zinc-500">🏆 {weeklyWins[uid]} night{weeklyWins[uid] !== 1 ? 's' : ''} won</span>
@@ -127,7 +127,7 @@ export default async function LeaderboardPage() {
                         const isWinner = score?.week_winner
                         return (
                           <td key={uid} className="px-4 py-3 text-center">
-                            <span className={`font-semibold text-sm ${isWinner ? 'text-yellow-400' : 'text-white'}`}>
+                            <span className={`font-semibold text-sm ${isWinner ? 'text-yellow-300' : 'text-white'}`}>
                               {score?.points ?? '—'}
                             </span>
                           </td>

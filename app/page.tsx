@@ -9,6 +9,7 @@ import { BettingInstructions } from '@/components/BettingInstructions'
 import { getUpcomingMatchesWithBets } from '@/lib/queries'
 import { Match } from '@/lib/types'
 import { SEASON } from '@/lib/config'
+import { isTournamentMatchId } from '@/lib/betting-rules'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -28,8 +29,8 @@ export default async function Home() {
   const isTournamentLocked = new Date(tournamentStartDate) <= new Date()
 
   // Separate tournament bets from match bets
-  const tournamentBets = bets.filter(b => b.match_id === 'TOURNAMENT_FINALISTS')
-  const matchBets = bets.filter(b => b.match_id !== 'TOURNAMENT_FINALISTS')
+  const tournamentBets = bets.filter(b => isTournamentMatchId(b.match_id))
+  const matchBets = bets.filter(b => !isTournamentMatchId(b.match_id))
 
   // Group matches by week (night number)
   const byWeek = matches.reduce<Record<number, Match[]>>((acc, match) => {
@@ -69,6 +70,7 @@ export default async function Home() {
               />
             ))}
             <TournamentBetCard
+              week={weeks[0]}
               matches={matches}
               existingBets={tournamentBets}
               isLocked={isTournamentLocked}

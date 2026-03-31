@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Match, Bet, BetType, BET_TYPE_CONFIG } from '@/lib/types'
+import { useState } from 'react'
+import { Match, Bet, BetType, BET_TYPE_CONFIG, DIFFICULTY_COLORS, fmtPts } from '@/lib/types'
+import { useBratislavaDateTime } from '@/hooks/useBratislavaDate'
+import { useBetSave } from '@/hooks/useBetSave'
 
 interface Props {
   match: Match
@@ -13,9 +15,8 @@ export default function MatchBetCard({ match, existingBets }: Props) {
   const betMap = Object.fromEntries(existingBets.map(b => [b.bet_type, b.prediction]))
 
   const [predictions, setPredictions] = useState<Record<string, string>>(betMap)
-  const [saving, setSaving] = useState<Record<string, boolean>>({})
-  const [saved, setSaved] = useState<Record<string, boolean>>({})
-
+  const { saving, saved, saveBet } = useBetSave()
+  const dateTimeStr = useBratislavaDateTime(match.match_date)
 
   const betTypes = (Object.keys(BET_TYPE_CONFIG) as BetType[]).filter(bt => BET_TYPE_CONFIG[bt].round === 'quarterfinals')
   const allPlaced = betTypes.every(bt => predictions[bt])
@@ -24,34 +25,12 @@ export default function MatchBetCard({ match, existingBets }: Props) {
   async function handleSelect(betType: BetType, value: string) {
     if (isLocked) return
     setPredictions(prev => ({ ...prev, [betType]: value }))
-    setSaving(prev => ({ ...prev, [betType]: true }))
-    setSaved(prev => ({ ...prev, [betType]: false }))
 
-    try {
-      const res = await fetch('/api/bets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_id: match.id, bet_type: betType, prediction: value }),
-      })
-
-      if (res.ok) {
-        setSaved(prev => ({ ...prev, [betType]: true }))
-        setTimeout(() => setSaved(prev => ({ ...prev, [betType]: false })), 2000)
-      }
-    } catch {
+    const ok = await saveBet({ match_id: match.id, bet_type: betType, prediction: value })
+    if (!ok) {
       setPredictions(prev => ({ ...prev, [betType]: betMap[betType] ?? '' }))
-    } finally {
-      setSaving(prev => ({ ...prev, [betType]: false }))
     }
   }
-
-  const [dateTimeStr, setDateTimeStr] = useState('')
-  useEffect(() => {
-    const d = new Date(match.match_date)
-    const date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Bratislava' })
-    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' })
-    setDateTimeStr(`${date} · ${time}`)
-  }, [match.match_date])
 
   return (
     <div className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800">
@@ -91,7 +70,12 @@ export default function MatchBetCard({ match, existingBets }: Props) {
           return (
             <div key={betType} className="px-4 py-3">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-zinc-400">{config.label}</p>
+                <p className="text-xs text-zinc-400">
+                  {config.label}
+                  <span className={`ml-1 font-semibold ${DIFFICULTY_COLORS[config.difficulty]?.text ?? 'text-zinc-400'}`}>
+                    {fmtPts(config.points)}
+                  </span>
+                </p>
                 <span className="text-xs text-zinc-600 w-12 text-right">
                   {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : ''}
                 </span>

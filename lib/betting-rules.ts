@@ -100,9 +100,10 @@ export function isTournamentMatchId(matchId: string | null): boolean {
 
 /**
  * Get synthetic match ID for finalist predictions
+ * @param week Night/week number — each night has its own tournament bets
  */
-export function getTournamentFinalistsMatchId(): string {
-  return 'TOURNAMENT_FINALISTS'
+export function getTournamentFinalistsMatchId(week: number): string {
+  return `TOURNAMENT_FINALISTS_W${week}`
 }
 
 /**

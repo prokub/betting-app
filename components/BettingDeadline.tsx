@@ -37,12 +37,12 @@ export function BettingDeadline({ tournamentStartDate }: BettingDeadlineProps) {
 
   if (isClosed) {
     return (
-      <div className="bg-red-100 border border-red-400 rounded-lg p-4 mb-6">
+      <div className="bg-red-950/40 border border-red-800 rounded-xl p-4 mb-6">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🚫</span>
           <div>
-            <h3 className="font-bold text-red-900">Betting Closed</h3>
-            <p className="text-sm text-red-700">
+            <h3 className="font-bold text-red-400">Betting Closed</h3>
+            <p className="text-sm text-red-300/80">
               Tournament has started. No more bets accepted.
             </p>
           </div>
@@ -52,19 +52,19 @@ export function BettingDeadline({ tournamentStartDate }: BettingDeadlineProps) {
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-amber-900">Betting Window</h3>
-          <p className="text-sm text-amber-700">
-            Place your bets before tournament starts
+          <h3 className="font-bold text-white">Betting Window</h3>
+          <p className="text-sm text-zinc-400">
+            Place your bets before the night starts
           </p>
         </div>
         <div className="text-right">
-          <div className="text-lg font-bold text-amber-900 font-mono">
+          <div className="text-lg font-bold text-emerald-400 font-mono">
             {timeRemaining}
           </div>
-          <div className="text-xs text-amber-600">Time remaining</div>
+          <div className="text-xs text-zinc-500">Time remaining</div>
         </div>
       </div>
     </div>
