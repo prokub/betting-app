@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Match, Bet, BetType, BET_TYPE_CONFIG } from '@/lib/types'
 
 interface Props {
@@ -45,9 +45,13 @@ export default function MatchBetCard({ match, existingBets }: Props) {
     }
   }
 
-  const matchDate = new Date(match.match_date)
-  const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Bratislava' })
-  const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' })
+  const [dateTimeStr, setDateTimeStr] = useState('')
+  useEffect(() => {
+    const d = new Date(match.match_date)
+    const date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Bratislava' })
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' })
+    setDateTimeStr(`${date} · ${time}`)
+  }, [match.match_date])
 
   return (
     <div className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800">
@@ -71,7 +75,7 @@ export default function MatchBetCard({ match, existingBets }: Props) {
           <span className="text-white font-semibold text-sm text-right">{match.player_away}</span>
         </div>
         <div className="text-xs text-zinc-500 mt-1 text-center">
-          {dateStr} · {timeStr}
+          {dateTimeStr}
         </div>
       </div>
 
