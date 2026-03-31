@@ -17,7 +17,7 @@ export default function PointsWinnerDisplay({ pointsByUser, profileMap, size = '
       {entries.map(([uid, pts]) => {
         const isWinner = hasWinner && pts === maxPts
         return (
-          <span key={uid} className={`${textSize} ${isWinner ? 'text-yellow-300 font-semibold' : 'text-zinc-400'}`}>
+          <span key={uid} className={`${textSize} ${size === 'sm' ? 'min-w-[5rem]' : ''} text-right whitespace-nowrap ${isWinner ? 'text-yellow-300 font-semibold' : 'text-zinc-400'}`}>
             {profileMap[uid]}: <span className={`font-semibold ${isWinner ? 'text-yellow-300' : 'text-zinc-500'}`}>{fmtPts(pts)}</span>
           </span>
         )

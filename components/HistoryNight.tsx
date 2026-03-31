@@ -39,9 +39,9 @@ export default function HistoryNight({
       {/* Night header — clickable to expand/collapse */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 mb-3 cursor-pointer hover:bg-zinc-800/80 transition-colors"
+        className="w-full flex flex-wrap items-center gap-y-1 rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 mb-3 cursor-pointer hover:bg-zinc-800/80 transition-colors"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mr-auto">
           <svg
             className={`w-4 h-4 text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}

@@ -16,16 +16,19 @@ export default function MatchResultRow({ playerHome, playerAway, scoreHome, scor
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className={`flex-1 min-w-0 truncate font-semibold text-sm ${playerColor(playerHome)}`}>
-        {playerHome}
-      </span>
-      <span className="shrink-0 text-white font-bold text-lg tracking-wider">
-        {status === 'cancelled' ? 'W/O' : `${scoreHome} – ${scoreAway}`}
-      </span>
-      <span className={`flex-1 min-w-0 truncate font-semibold text-sm text-right ${playerColor(playerAway)}`}>
-        {playerAway}
-      </span>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <span className={`font-semibold text-sm ${playerColor(playerHome)}`}>{playerHome}</span>
+        <span className={`font-bold text-sm tabular-nums ${status !== 'cancelled' ? (winner === playerHome ? 'text-white' : 'text-zinc-500') : 'text-zinc-500'}`}>
+          {status === 'cancelled' ? '–' : scoreHome}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className={`font-semibold text-sm ${playerColor(playerAway)}`}>{playerAway}</span>
+        <span className={`font-bold text-sm tabular-nums ${status !== 'cancelled' ? (winner === playerAway ? 'text-white' : 'text-zinc-500') : 'text-zinc-500'}`}>
+          {status === 'cancelled' ? '–' : scoreAway}
+        </span>
+      </div>
     </div>
   )
 }

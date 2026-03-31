@@ -48,12 +48,11 @@ export default function MatchBetCard({ match, existingBets }: Props) {
             {isLocked ? 'Locked' : `${totalPlaced}/${betTypes.length} placed`}
           </span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
           <span className="text-white font-semibold text-sm">{match.player_home}</span>
-          <span className="text-zinc-500 text-xs font-bold">vs</span>
-          <span className="text-white font-semibold text-sm text-right">{match.player_away}</span>
+          <span className="text-white font-semibold text-sm">{match.player_away}</span>
         </div>
-        <div className="text-xs text-zinc-500 mt-1 text-center">
+        <div className="text-xs text-zinc-500 mt-1">
           {dateTimeStr}
         </div>
       </div>
