@@ -10,7 +10,7 @@ interface Props {
 export default function NightSection({ week, matches, bets }: Props) {
   const nightDate = new Date(matches[0].match_date)
   const dateStr = nightDate.toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long'
+    weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Bratislava'
   })
 
   return (

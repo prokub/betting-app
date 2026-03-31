@@ -46,8 +46,8 @@ export default function MatchBetCard({ match, existingBets }: Props) {
   }
 
   const matchDate = new Date(match.match_date)
-  const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-  const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = matchDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Bratislava' })
+  const timeStr = matchDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' })
 
   return (
     <div className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800">
