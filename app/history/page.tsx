@@ -16,29 +16,25 @@ export default async function HistoryPage() {
   const { data: profiles } = await supabase
     .from('profiles').select('id, display_name')
 
-  // Only fetch quarterfinal matches (not semis/finals)
+  // Fetch quarterfinal and final matches
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
     .in('status', ['finished', 'cancelled'])
-    .eq('round_name', 'Quarterfinals')
+    .in('round_name', ['Quarterfinals', 'Final'])
     .order('match_date', { ascending: false })
 
-  const matchIds = (matches ?? []).map(m => m.id)
+  const quarterMatches = (matches ?? []).filter(m => m.round_name === 'Quarterfinals')
+  const finalMatches = (matches ?? []).filter(m => m.round_name === 'Final')
+
+  const matchIds = quarterMatches.map(m => m.id)
   const { data: bets } = await supabase
     .from('bets')
     .select('*')
     .in('match_id', matchIds)
 
-  // Fetch tournament bets separately
+  // Fetch tournament bets
   const tournamentMatchId = getTournamentFinalistsMatchId()
-  const { data: tournamentMatch } = await supabase
-    .from('matches')
-    .select('*')
-    .eq('id', tournamentMatchId)
-    .in('status', ['finished', 'cancelled'])
-    .single()
-
   const { data: tournamentBets } = await supabase
     .from('bets')
     .select('*')
@@ -46,17 +42,20 @@ export default async function HistoryPage() {
 
   const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.display_name]))
 
-  // Group matches by week
-  const byWeek = (matches ?? []).reduce<Record<number, Match[]>>((acc, m) => {
+  // Group quarterfinal matches by week
+  const byWeek = quarterMatches.reduce<Record<number, Match[]>>((acc, m) => {
     if (!acc[m.week]) acc[m.week] = []
     acc[m.week].push(m)
     return acc
   }, {})
 
-  const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a)
+  // Index final matches by week
+  const finalByWeek: Record<number, Match> = {}
+  for (const m of finalMatches) {
+    finalByWeek[m.week] = m
+  }
 
-  // Tournament bets belong to the week of the tournament match (if finished)
-  const tournamentWeek = tournamentMatch?.week ?? null
+  const weeks = Object.keys(byWeek).map(Number).sort((a, b) => b - a)
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -77,10 +76,10 @@ export default async function HistoryPage() {
             week={week}
             matches={byWeek[week]}
             bets={bets ?? []}
-            tournamentBets={tournamentWeek === week ? (tournamentBets ?? []) : []}
+            finalMatch={finalByWeek[week] ?? null}
+            tournamentBets={tournamentBets ?? []}
             profileMap={profileMap}
             defaultOpen={i === 0}
-            showTournamentBets={tournamentWeek === week}
           />
         ))}
       </main>
