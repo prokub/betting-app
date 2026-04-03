@@ -4,18 +4,21 @@ import { useState } from 'react'
 import { Match, Bet, BetType, BET_TYPE_CONFIG, DIFFICULTY_COLORS, fmtPts } from '@/lib/types'
 import { useBratislavaDateTime } from '@/hooks/useBratislavaDate'
 import { useBetSave } from '@/hooks/useBetSave'
+import { useLockTimer } from '@/hooks/useLockTimer'
 
 interface Props {
   match: Match
   existingBets: Bet[]
+  nightStartDate: string
 }
 
-export default function MatchBetCard({ match, existingBets }: Props) {
-  const isLocked = new Date(match.match_date) <= new Date()
+export default function MatchBetCard({ match, existingBets, nightStartDate }: Props) {
+  const isLocked = useLockTimer(nightStartDate)
+
   const betMap = Object.fromEntries(existingBets.map(b => [b.bet_type, b.prediction]))
 
   const [predictions, setPredictions] = useState<Record<string, string>>(betMap)
-  const { saving, saved, saveBet } = useBetSave()
+  const { saving, saved, error: saveError, saveBet } = useBetSave()
   const dateTimeStr = useBratislavaDateTime(match.match_date)
 
   const betTypes = (Object.keys(BET_TYPE_CONFIG) as BetType[]).filter(bt => BET_TYPE_CONFIG[bt].round === 'quarterfinals')
@@ -101,10 +104,15 @@ export default function MatchBetCard({ match, existingBets }: Props) {
       </div>
 
       {/* Footer */}
-      {!isLocked && allPlaced && (
+      {saveError && (
+        <div className="px-4 py-3 border-t border-zinc-800 bg-red-950/30">
+          <p className="text-xs text-red-400 text-center font-medium">{saveError}</p>
+        </div>
+      )}
+      {!isLocked && !saveError && allPlaced && (
         <div className="px-4 py-3 border-t border-zinc-800 bg-emerald-950/30">
           <p className="text-xs text-emerald-400 text-center font-medium">
-            All bets placed ✓ — you can still change them before the match starts
+            All bets placed ✓ — you can still change them before the night starts
           </p>
         </div>
       )}

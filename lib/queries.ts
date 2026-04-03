@@ -1,6 +1,52 @@
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { redirect } from 'next/navigation'
 import { Match, Bet } from '@/lib/types'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
+
+/** Auth check + profile + standing in one call. Redirects to /login if not authenticated. */
+export async function getAuthenticatedUser() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const [{ data: profile }, standing] = await Promise.all([
+    supabase.from('profiles').select('display_name').eq('id', user.id).single(),
+    getUserStanding(user.id),
+  ])
+
+  return {
+    user,
+    displayName: profile?.display_name ?? 'User',
+    ...standing,
+  }
+}
+
+export async function getUserStanding(userId: string) {
+  const { data: scores } = await supabaseAdmin
+    .from('weekly_scores')
+    .select('user_id, points, week_winner')
+
+  if (!scores?.length) return { rank: undefined, totalPoints: 0, nightsWon: 0 }
+
+  // Sum per user
+  const totals: Record<string, { points: number; wins: number }> = {}
+  for (const s of scores) {
+    if (!totals[s.user_id]) totals[s.user_id] = { points: 0, wins: 0 }
+    totals[s.user_id].points += s.points
+    if (s.week_winner) totals[s.user_id].wins++
+  }
+
+  const sorted = Object.entries(totals).sort((a, b) => b[1].points - a[1].points)
+  const rank = sorted.findIndex(([uid]) => uid === userId) + 1
+  const user = totals[userId] ?? { points: 0, wins: 0 }
+
+  return {
+    rank: rank > 0 ? rank : undefined,
+    totalPoints: user.points,
+    nightsWon: user.wins,
+  }
+}
 
 export async function getUpcomingMatchesWithBets(userId: string) {
   const supabase = await createClient()

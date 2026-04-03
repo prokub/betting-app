@@ -8,9 +8,10 @@ interface Props {
   week: number
   matches: Match[]
   bets: Bet[]
+  nightStartDate: string
 }
 
-export default function NightSection({ week, matches, bets }: Props) {
+export default function NightSection({ week, matches, bets, nightStartDate }: Props) {
   const dateStr = useBratislavaDate(matches[0].match_date, {
     weekday: 'long', day: 'numeric', month: 'long',
   })
@@ -27,6 +28,7 @@ export default function NightSection({ week, matches, bets }: Props) {
             key={match.id}
             match={match}
             existingBets={bets.filter(b => b.match_id === match.id)}
+            nightStartDate={nightStartDate}
           />
         ))}
       </div>

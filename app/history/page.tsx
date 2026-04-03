@@ -1,23 +1,18 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import Navbar from '@/components/Navbar'
 import HistoryNight from '@/components/HistoryNight'
 import { Match } from '@/lib/types'
+import { getAuthenticatedUser } from '@/lib/queries'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
 
 export default async function HistoryPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const auth = await getAuthenticatedUser()
 
-  const { data: profile } = await supabase
-    .from('profiles').select('display_name').eq('id', user.id).single()
-
-  const { data: profiles } = await supabase
+  // Use admin client to bypass RLS — need all users' data
+  const { data: profiles } = await supabaseAdmin
     .from('profiles').select('id, display_name')
 
-  // Fetch quarterfinal and final matches
-  const { data: matches } = await supabase
+  const { data: matches } = await supabaseAdmin
     .from('matches')
     .select('*')
     .in('status', ['finished', 'cancelled'])
@@ -28,7 +23,7 @@ export default async function HistoryPage() {
   const finalMatches = (matches ?? []).filter(m => m.round_name === 'Final')
 
   const matchIds = quarterMatches.map(m => m.id)
-  const { data: bets } = await supabase
+  const { data: bets } = await supabaseAdmin
     .from('bets')
     .select('*')
     .in('match_id', matchIds)
@@ -37,7 +32,7 @@ export default async function HistoryPage() {
   const allWeekNumbers = [...new Set((matches ?? []).map(m => m.week))]
   const tournamentMatchIds = allWeekNumbers.map(w => getTournamentFinalistsMatchId(w))
   const { data: tournamentBets } = tournamentMatchIds.length > 0
-    ? await supabase
+    ? await supabaseAdmin
       .from('bets')
       .select('*')
       .in('match_id', tournamentMatchIds)
@@ -62,7 +57,7 @@ export default async function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? 'User'} />
+      <Navbar displayName={auth.displayName} rank={auth.rank} totalPoints={auth.totalPoints} nightsWon={auth.nightsWon} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-6">
         <h1 className="text-2xl font-bold text-white">History</h1>
 

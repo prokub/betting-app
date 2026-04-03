@@ -20,7 +20,9 @@ interface Props {
 export default function HistoryNight({
   week, matches, bets, finalMatch, tournamentBets, profileMap, defaultOpen,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(() =>
+    defaultOpen || (typeof window !== 'undefined' && window.location.hash === `#night-${week}`)
+  )
 
   const userIds = Object.keys(profileMap)
   const nightBets = bets.filter(b => matches.some(m => m.id === b.match_id))
@@ -35,13 +37,13 @@ export default function HistoryNight({
   )
 
   return (
-    <section>
+    <section id={`night-${week}`}>
       {/* Night header — clickable to expand/collapse */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex flex-wrap items-center gap-y-1 rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 mb-3 cursor-pointer hover:bg-zinc-800/80 transition-colors"
+        className="w-full flex flex-col gap-2 rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3 mb-3 cursor-pointer hover:bg-zinc-800/80 transition-colors"
       >
-        <div className="flex items-center gap-3 mr-auto">
+        <div className="flex items-center gap-3">
           <svg
             className={`w-4 h-4 text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
@@ -51,7 +53,9 @@ export default function HistoryNight({
           <h2 className="text-lg font-bold text-white">Night {week}</h2>
           <span className="text-xs text-zinc-500">{matches.length} matches</span>
         </div>
-        <PointsWinnerDisplay pointsByUser={nightPoints} profileMap={profileMap} size="sm" />
+        <div className="pl-7">
+          <PointsWinnerDisplay pointsByUser={nightPoints} profileMap={profileMap} size="sm" />
+        </div>
       </button>
 
       {/* Collapsible content */}

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     // Regular bets: verify match exists and validate placement
     const { data: match } = await supabaseAdmin
       .from('matches')
-      .select('status, match_date, round_name')
+      .select('status, match_date, round_name, week')
       .eq('id', match_id)
       .single()
 
@@ -62,7 +62,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Match is no longer accepting bets' }, { status: 400 })
     }
 
-    const validation = validateBetPlacement(match.match_date, match.round_name)
+    // Lock all matches in the week once the first match starts
+    const { data: earliest } = await supabaseAdmin
+      .from('matches')
+      .select('match_date')
+      .eq('week', match.week)
+      .eq('round_name', 'Quarterfinals')
+      .eq('status', 'upcoming')
+      .order('match_date', { ascending: true })
+      .limit(1)
+      .single()
+
+    const lockDate = earliest?.match_date ?? match.match_date
+    const validation = validateBetPlacement(lockDate, match.round_name)
     if (!validation.allowed) {
       return NextResponse.json({ error: validation.reason }, { status: 400 })
     }
