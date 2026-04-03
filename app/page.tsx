@@ -1,28 +1,17 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import NightSection from '@/components/NightSection'
 import { ScoringLegend } from '@/components/ScoringLegend'
 import TournamentBetCard from '@/components/TournamentBetCard'
 import { BettingDeadline } from '@/components/BettingDeadline'
 import { BettingInstructions } from '@/components/BettingInstructions'
-import { getUpcomingMatchesWithBets } from '@/lib/queries'
+import { getAuthenticatedUser, getUpcomingMatchesWithBets } from '@/lib/queries'
 import { Match } from '@/lib/types'
 import { SEASON } from '@/lib/config'
 import { isTournamentMatchId } from '@/lib/betting-rules'
 
 export default async function Home() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', user.id)
-    .single()
-
-  const { matches, bets } = await getUpcomingMatchesWithBets(user.id)
+  const auth = await getAuthenticatedUser()
+  const { matches, bets } = await getUpcomingMatchesWithBets(auth.user.id)
 
   // Get tournament start date (first quarterfinal match)
   const tournamentStartDate = matches.length > 0 ? matches[0].match_date : new Date().toISOString()
@@ -43,7 +32,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? user.email ?? 'User'} />
+      <Navbar displayName={auth.displayName} rank={auth.rank} totalPoints={auth.totalPoints} nightsWon={auth.nightsWon} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Place your bets</h1>
@@ -67,6 +56,7 @@ export default async function Home() {
                 week={week}
                 matches={byWeek[week]}
                 bets={matchBets}
+                nightStartDate={tournamentStartDate}
               />
             ))}
             <TournamentBetCard

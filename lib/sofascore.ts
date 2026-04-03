@@ -68,6 +68,41 @@ export async function fetchFirstThrower(eventId: number): Promise<'home' | 'away
   }
 }
 
+// Tournament standings
+interface SofascoreStandingRow {
+  position: number
+  team: { id: number; name: string; slug?: string }
+  matches: number
+  wins: number
+  points: number
+}
+
+export interface StandingRow {
+  position: number
+  player: string
+  played: number
+  won: number
+  points: number
+}
+
+export async function fetchTournamentStandings(seasonId: number): Promise<StandingRow[]> {
+  try {
+    const data = await sfetch(
+      `${BASE}/unique-tournament/${SEASON.tournamentId}/season/${seasonId}/standings/total`
+    )
+    const rows: SofascoreStandingRow[] = data.standings?.[0]?.rows ?? []
+    return rows.map(r => ({
+      position: r.position,
+      player: r.team?.name ?? 'Unknown',
+      played: r.matches ?? 0,
+      won: r.wins ?? 0,
+      points: r.points ?? 0,
+    }))
+  } catch {
+    return []
+  }
+}
+
 // Parse raw Sofascore events into DB rows
 export function parseEvents(events: SofascoreEvent[]) {
   return events.map(e => {

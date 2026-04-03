@@ -9,7 +9,12 @@ jobs:
   evaluate:
     runs-on: ubuntu-latest
     steps:
+      - name: Sync matches first (marks finished matches in DB)
+        run: |
+          curl -sf -X POST ${{ secrets.APP_URL }}/api/sync-matches \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
       - name: Call evaluate endpoint
         run: |
-          curl -X POST ${{ secrets.APP_URL }}/api/evaluate \
+          curl -sf -X POST ${{ secrets.APP_URL }}/api/evaluate \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

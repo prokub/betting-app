@@ -1,27 +1,22 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import Navbar from '@/components/Navbar'
 import { BET_TYPE_CONFIG, BetType, fmtPts } from '@/lib/types'
 import { SEASON } from '@/lib/config'
+import { getAuthenticatedUser } from '@/lib/queries'
+import { findLeader } from '@/lib/points'
+import PlayerStandings from '@/components/PlayerStandings'
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const auth = await getAuthenticatedUser()
 
-  const { data: profile } = await supabase
-    .from('profiles').select('display_name').eq('id', user.id).single()
-
-  // All profiles
-  const { data: profiles } = await supabase
+  // Use admin client to bypass RLS — need all users' data
+  const { data: profiles } = await supabaseAdmin
     .from('profiles').select('id, display_name')
 
-  // All weekly scores
-  const { data: weeklyScores } = await supabase
+  const { data: weeklyScores } = await supabaseAdmin
     .from('weekly_scores').select('*').order('week', { ascending: true })
 
-  // All evaluated bets with match info
-  const { data: bets } = await supabase
+  const { data: bets } = await supabaseAdmin
     .from('bets')
     .select('user_id, bet_type, points_earned, match_id, matches(week, player_home, player_away, round_name)')
     .not('points_earned', 'is', null)
@@ -53,19 +48,35 @@ export default async function LeaderboardPage() {
       const byType = Object.fromEntries(
         (Object.keys(BET_TYPE_CONFIG) as BetType[]).map(bt => {
           const typeBets = userBets.filter(b => b.bet_type === bt)
-          const correct = typeBets.filter(b => (b.points_earned ?? 0) > 0).length
-          return [bt, { correct, total: typeBets.length }]
+          let correct: number
+          let total: number
+          if (bt === 'finalist_prediction') {
+            // Each bet has 2 finalist picks — count individual correct guesses (5 pts each)
+            correct = typeBets.reduce((sum, b) => sum + Math.floor((b.points_earned ?? 0) / 5), 0)
+            total = typeBets.length * 2
+          } else {
+            correct = typeBets.filter(b => (b.points_earned ?? 0) > 0).length
+            total = typeBets.length
+          }
+          return [bt, { correct, total }]
         })
       )
       return [uid, byType]
     })
   )
 
+  // Tournament player standings
+  const { data: tournamentStandings } = await supabaseAdmin
+    .from('tournament_standings')
+    .select('*')
+    .eq('season', SEASON.year)
+    .order('position', { ascending: true })
+
   const sortedUsers = [...userIds].sort((a, b) => seasonTotals[b] - seasonTotals[a])
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <Navbar displayName={profile?.display_name ?? 'User'} />
+      <Navbar displayName={auth.displayName} rank={auth.rank} totalPoints={auth.totalPoints} nightsWon={auth.nightsWon} />
       <main className="max-w-lg mx-auto px-4 py-6 flex flex-col gap-8">
 
         {/* Season standings */}
@@ -74,28 +85,33 @@ export default async function LeaderboardPage() {
           <div className="flex flex-col gap-3">
             {sortedUsers.map((uid, idx) => (
               <div key={uid} className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-3">
                   <span className={`text-2xl font-bold ${idx === 0 ? 'text-yellow-300' : 'text-zinc-600'}`}>
                     #{idx + 1}
                   </span>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white font-semibold">{profileMap[uid]}</span>
-                      <span className="text-2xl font-bold text-emerald-400">{fmtPts(seasonTotals[uid])}</span>
-                    </div>
-                    <div className="flex gap-4 mt-1">
+                  <span className="text-white font-semibold text-lg">{profileMap[uid]}</span>
+                  <span className="text-2xl font-bold text-emerald-400 ml-auto">{fmtPts(seasonTotals[uid])}</span>
+                </div>
+                {(() => {
+                  const userBets = (bets ?? []).filter(b => b.user_id === uid)
+                  const correct = userBets.filter(b => (b.points_earned ?? 0) > 0).length
+                  const total = userBets.length
+                  const pct = total > 0 ? Math.round((correct / total) * 100) : null
+                  return (
+                    <div className="flex gap-4 pl-10">
                       <span className="text-xs text-zinc-500">🏆 {weeklyWins[uid]} night{weeklyWins[uid] !== 1 ? 's' : ''} won</span>
                       <span className="text-xs text-zinc-500">
-                        {(bets ?? []).filter(b => b.user_id === uid && (b.points_earned ?? 0) > 0).length}/
-                        {(bets ?? []).filter(b => b.user_id === uid).length} bets correct
+                        {correct}/{total} bets correct{pct !== null ? ` · ${pct}%` : ''}
                       </span>
                     </div>
-                  </div>
-                </div>
+                  )
+                })()}
               </div>
             ))}
           </div>
         </section>
+
+        <PlayerStandings standings={tournamentStandings ?? []} />
 
         {/* Weekly breakdown */}
         <section>
@@ -104,9 +120,9 @@ export default async function LeaderboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-800">
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium text-xs">Night</th>
+                  <th className="text-left px-4 py-3.5 text-zinc-500 font-medium text-xs">Night</th>
                   {sortedUsers.map(uid => (
-                    <th key={uid} className="text-center px-4 py-3 text-zinc-500 font-medium text-xs">
+                    <th key={uid} className="text-center px-4 py-3.5 text-zinc-500 font-medium text-xs">
                       {profileMap[uid]}
                     </th>
                   ))}
@@ -121,12 +137,16 @@ export default async function LeaderboardPage() {
                   )
                   return (
                     <tr key={week} className="border-b border-zinc-800/50 last:border-0">
-                      <td className="px-4 py-3 text-zinc-400 text-xs">Night {week}</td>
+                      <td className="px-4 py-3.5 text-xs">
+                        <a href={`/history#night-${week}`} className="text-zinc-400 hover:text-white transition no-underline">
+                          Night {week}
+                        </a>
+                      </td>
                       {sortedUsers.map(uid => {
                         const score = weekScores[uid]
                         const isWinner = score?.week_winner
                         return (
-                          <td key={uid} className="px-4 py-3 text-center">
+                          <td key={uid} className="px-4 py-3.5 text-center">
                             <span className={`font-semibold text-sm ${isWinner ? 'text-yellow-300' : 'text-white'}`}>
                               {score?.points ?? '—'}
                             </span>
@@ -137,14 +157,23 @@ export default async function LeaderboardPage() {
                   )
                 })}
                 {/* Season total row */}
-                <tr className="bg-zinc-800/40">
-                  <td className="px-4 py-3 text-zinc-300 text-xs font-semibold">Total</td>
-                  {sortedUsers.map(uid => (
-                    <td key={uid} className="px-4 py-3 text-center">
-                      <span className="font-bold text-emerald-400">{seasonTotals[uid]}</span>
-                    </td>
-                  ))}
-                </tr>
+                {(() => {
+                  const totals = sortedUsers.map(uid => seasonTotals[uid])
+                  const { max, hasClearLeader } = findLeader(totals)
+                  return (
+                    <tr className="bg-zinc-800/40 border-t border-zinc-700">
+                      <td className="px-4 py-4 text-zinc-300 text-xs font-semibold">Total</td>
+                      {sortedUsers.map((uid, i) => {
+                        const isLeader = hasClearLeader && totals[i] === max
+                        return (
+                          <td key={uid} className="px-4 py-4 text-center">
+                            <span className={`font-bold text-base ${isLeader ? 'text-yellow-300' : 'text-emerald-400'}`}>{seasonTotals[uid]}</span>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })()}
               </tbody>
             </table>
           </div>
@@ -157,25 +186,37 @@ export default async function LeaderboardPage() {
             {(Object.keys(BET_TYPE_CONFIG) as BetType[]).map((bt, idx) => {
               const isLast = idx === Object.keys(BET_TYPE_CONFIG).length - 1
               return (
-                <div key={bt} className={`px-4 py-3 ${!isLast ? 'border-b border-zinc-800/50' : ''}`}>
-                  <p className="text-xs text-zinc-500 mb-2">{BET_TYPE_CONFIG[bt].label}</p>
-                  <div className="flex gap-6">
-                    {sortedUsers.map(uid => {
+                <div key={bt} className={`px-4 py-4 ${!isLast ? 'border-b border-zinc-800/50' : ''}`}>
+                  <p className="text-xs text-zinc-500 mb-3">{BET_TYPE_CONFIG[bt].label}</p>
+                  {(() => {
+                    const pcts = sortedUsers.map(uid => {
                       const { correct, total } = betTypeStats[uid][bt]
-                      const pct = total > 0 ? Math.round((correct / total) * 100) : null
+                      return total > 0 ? Math.round((correct / total) * 100) : -1
+                    })
+                    const { max, hasClearLeader } = findLeader(pcts)
+                    return (
+                  <div className="flex flex-col gap-2">
+                    {sortedUsers.map((uid, i) => {
+                      const { correct, total } = betTypeStats[uid][bt]
+                      const pct = pcts[i]
+                      const isLeader = hasClearLeader && pct === max
                       return (
-                        <div key={uid} className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-500">{profileMap[uid]}</span>
-                          <span className="text-sm font-semibold text-white">
-                            {pct !== null ? `${pct}%` : '—'}
-                          </span>
-                          <span className="text-xs text-zinc-600">
-                            {total > 0 ? `(${correct}/${total})` : ''}
-                          </span>
+                        <div key={uid} className="flex items-center justify-between">
+                          <span className={`text-xs ${isLeader ? 'text-yellow-300' : 'text-zinc-400'}`}>{profileMap[uid]}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-semibold ${isLeader ? 'text-yellow-300' : 'text-white'}`}>
+                              {pct >= 0 ? `${pct}%` : '—'}
+                            </span>
+                            <span className="text-xs text-zinc-600 w-12 text-right">
+                              {total > 0 ? `${correct}/${total}` : ''}
+                            </span>
+                          </div>
                         </div>
                       )
                     })}
                   </div>
+                    )
+                  })()}
                 </div>
               )
             })}

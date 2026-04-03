@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Match, Bet, BET_TYPE_CONFIG, DIFFICULTY_COLORS, fmtPts } from '@/lib/types'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
 import { useBetSave } from '@/hooks/useBetSave'
+import { useLockTimer } from '@/hooks/useLockTimer'
 
 interface Props {
   week: number
@@ -12,7 +13,14 @@ interface Props {
   isLocked: boolean
 }
 
-export default function TournamentBetCard({ week, matches, existingBets, isLocked }: Props) {
+export default function TournamentBetCard({ week, matches, existingBets, isLocked: initialLocked }: Props) {
+  // Find earliest match date for real-time lock check
+  const earliestDate = matches.length > 0
+    ? matches.reduce((earliest, m) => m.match_date < earliest ? m.match_date : earliest, matches[0].match_date)
+    : null
+
+  const isLocked = useLockTimer(earliestDate, initialLocked)
+
   const TOURNAMENT_MATCH_ID = getTournamentFinalistsMatchId(week)
   const players = [...new Set(matches.flatMap(m => [m.player_home, m.player_away]))].sort()
 
@@ -31,7 +39,7 @@ export default function TournamentBetCard({ week, matches, existingBets, isLocke
 
   const [finalists, setFinalists] = useState<string[]>(initialFinalists)
   const [winner, setWinner] = useState<string>(existingWinner?.prediction ?? '')
-  const { saving, saved, saveBet } = useBetSave()
+  const { saving, saved, error: saveError, saveBet } = useBetSave()
 
   async function handleFinalistToggle(player: string) {
     if (isLocked) return
@@ -163,7 +171,12 @@ export default function TournamentBetCard({ week, matches, existingBets, isLocke
       </div>
 
       {/* Footer */}
-      {!isLocked && finalists.length === 2 && winner && (
+      {saveError && (
+        <div className="px-4 py-3 border-t border-zinc-800 bg-red-950/30">
+          <p className="text-xs text-red-400 text-center font-medium">{saveError}</p>
+        </div>
+      )}
+      {!isLocked && !saveError && finalists.length === 2 && winner && (
         <div className="px-4 py-3 border-t border-zinc-800 bg-emerald-950/30">
           <p className="text-xs text-emerald-400 text-center font-medium">
             Night bets placed ✓ — you can still change them before the night starts

@@ -1,5 +1,13 @@
 import { Bet } from './types'
 
+/** Returns the max value and whether a single clear leader exists (no ties). */
+export function findLeader(values: number[]): { max: number; hasClearLeader: boolean } {
+  const valid = values.filter(v => v > 0)
+  if (valid.length === 0) return { max: 0, hasClearLeader: false }
+  const max = Math.max(...valid)
+  return { max, hasClearLeader: values.filter(v => v === max).length === 1 }
+}
+
 export function calcPointsByUser(
   userIds: string[],
   bets: Bet[]

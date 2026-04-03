@@ -4,7 +4,14 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
 
-export default function Navbar({ displayName }: { displayName: string }) {
+interface Props {
+  displayName: string
+  rank?: number
+  totalPoints?: number
+  nightsWon?: number
+}
+
+export default function Navbar({ displayName, rank, totalPoints, nightsWon }: Props) {
   const supabase = createClient()
   const router = useRouter()
   const pathname = usePathname()
@@ -29,6 +36,15 @@ export default function Navbar({ displayName }: { displayName: string }) {
             <span className="font-bold text-white text-sm">Darts Bets</span>
           </div>
           <div className="flex items-center gap-3">
+            {totalPoints != null && (
+              <div className="flex items-center gap-2 text-xs">
+                {rank != null && <span className={`font-bold ${rank === 1 ? 'text-yellow-300' : 'text-zinc-400'}`}>#{rank}</span>}
+                <span className="text-emerald-400 font-semibold">{totalPoints} pts</span>
+                {nightsWon != null && nightsWon > 0 && (
+                  <span className="text-yellow-300">🏆{nightsWon}</span>
+                )}
+              </div>
+            )}
             <span className="text-zinc-400 text-xs">{displayName}</span>
             <button
               onClick={handleLogout}
