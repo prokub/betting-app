@@ -36,15 +36,6 @@ export default function Navbar({ displayName, rank, totalPoints, nightsWon }: Pr
             <span className="font-bold text-white text-sm">Darts Bets</span>
           </div>
           <div className="flex items-center gap-3">
-            {totalPoints != null && (
-              <div className="flex items-center gap-2 text-xs">
-                {rank != null && <span className={`font-bold ${rank === 1 ? 'text-yellow-300' : 'text-zinc-400'}`}>#{rank}</span>}
-                <span className="text-emerald-400 font-semibold">{totalPoints} pts</span>
-                {nightsWon != null && nightsWon > 0 && (
-                  <span className="text-yellow-300">🏆{nightsWon}</span>
-                )}
-              </div>
-            )}
             <span className="text-zinc-400 text-xs">{displayName}</span>
             <button
               onClick={handleLogout}
@@ -54,6 +45,15 @@ export default function Navbar({ displayName, rank, totalPoints, nightsWon }: Pr
             </button>
           </div>
         </div>
+        {totalPoints != null && (
+          <div className="flex items-center justify-center gap-3 pb-2 text-xs">
+            {rank != null && <span className={`font-bold ${rank === 1 ? 'text-yellow-300' : 'text-zinc-400'}`}>#{rank}</span>}
+            <span className="text-emerald-400 font-semibold">{totalPoints} pts</span>
+            {nightsWon != null && nightsWon > 0 && (
+              <span className="text-yellow-300">🏆 {nightsWon} night{nightsWon !== 1 ? 's' : ''} won</span>
+            )}
+          </div>
+        )}
         <div className="flex gap-1 pb-2">
           {links.map(({ href, label }) => (
             <Link
