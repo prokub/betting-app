@@ -5,7 +5,6 @@ import {
   getCurrentSeasonId,
   fetchUpcomingEvents,
   fetchFinishedEvents,
-  fetchTournamentStandings,
   parseEvents,
 } from '@/lib/sofascore'
 import { getTournamentFinalistsMatchId } from '@/lib/betting-rules'
@@ -70,27 +69,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Sync tournament standings
-    const standings = await fetchTournamentStandings(seasonId)
-    if (standings.length > 0) {
-      const standingRows = standings.map(s => ({
-        season: SEASON.year,
-        position: s.position,
-        player: s.player,
-        played: s.played,
-        won: s.won,
-        points: s.points,
-      }))
-      await supabaseAdmin
-        .from('tournament_standings')
-        .upsert(standingRows, { onConflict: 'season,player' })
-    }
 
     return NextResponse.json({
       synced: parsed.length,
       upcoming: upcoming.length,
       finished: finished.length,
-      standings: standings.length,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : JSON.stringify(err)
