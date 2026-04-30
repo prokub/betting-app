@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { env } from '@/lib/env'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { fetchEventStatistics, fetchFirstThrower } from '@/lib/sofascore'
+import { fetchEventStatistics, fetchFirstThrower, fetchTournamentStandings, getCurrentSeasonId } from '@/lib/sofascore'
 import { scoreBet, scoreTournamentBet, getTournamentContext } from '@/lib/scoring'
 import { BetType } from '@/lib/types'
 import { isTournamentMatchId, getTournamentFinalistsMatchId } from '@/lib/betting-rules'
+import { SEASON } from '@/lib/config'
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -13,6 +14,24 @@ export async function POST(request: Request) {
   }
 
   try {
+    const seasonId = await getCurrentSeasonId()
+
+    //  Sync tournament standings
+    const standings = await fetchTournamentStandings(seasonId)
+    if (standings.length > 0) {
+      const standingRows = standings.map(s => ({
+        season: SEASON.year,
+        position: s.position,
+        player: s.player,
+        played: s.played,
+        won: s.won,
+        points: s.points,
+      }))
+      await supabaseAdmin
+        .from('tournament_standings')
+        .upsert(standingRows, { onConflict: 'season,player' })
+    }
+    
     // 0. Zero out bets on cancelled matches
     const { data: cancelledMatches } = await supabaseAdmin
       .from('matches').select('id').eq('status', 'cancelled')
@@ -170,6 +189,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       evaluated: updates.length,
       matches: uniqueExternalIds.length,
+      standings: standings.length,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : JSON.stringify(err)
