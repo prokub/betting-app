@@ -28,13 +28,37 @@ interface SofascoreEvent {
   roundInfo?: { name: string }
 }
 
+// Helper: Calculate next Thursday (for scheduled-events endpoint)
+function getNextThursday(): Date {
+  const today = new Date()
+  const currentDay = today.getDay()
+  // Thursday is 4 (0=Sunday, 1=Monday, ..., 4=Thursday)
+  const daysUntilThursday = (4 - currentDay + 7) % 7
+  const nextThursday = new Date(today)
+  nextThursday.setDate(nextThursday.getDate() + daysUntilThursday)
+  return nextThursday
+}
+
 // Upcoming matches (not yet played)
+export async function fetchUpcomingEvents(seasonId: number): Promise<SofascoreEvent[]> {
+  // WORKAROUND: Old endpoint (events/next/0) returns 404. Using new scheduled-events endpoint.
+  // Fetches matches scheduled for next Thursday (when Premier League Darts events happen)
+  const nextThursday = getNextThursday()
+  const dateStr = nextThursday.toISOString().split('T')[0] // Format: YYYY-MM-DD
+  const data = await sfetch(
+    `${BASE}/unique-tournament/${SEASON.tournamentId}/scheduled-events/${dateStr}`
+  )
+  return data.events ?? []
+}
+
+/* DEPRECATED: Old endpoint no longer works (returns 404)
 export async function fetchUpcomingEvents(seasonId: number): Promise<SofascoreEvent[]> {
   const data = await sfetch(
     `${BASE}/unique-tournament/${SEASON.tournamentId}/season/${seasonId}/events/next/0`
   )
   return data.events ?? []
 }
+*/
 
 // Finished matches
 export async function fetchFinishedEvents(seasonId: number): Promise<SofascoreEvent[]> {
